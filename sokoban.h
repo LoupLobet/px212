@@ -30,6 +30,6 @@ typedef struct  {
 } Stack;
 
 enum {PLAYER = '@', BOX = '$', EMPTY};
-enum {WALL = '#', FLOOR = ' ', TARGET = ' '};
+enum {WALL = '#', FLOOR = ' ', TARGET = '.'};
 
 #endif
