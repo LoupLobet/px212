@@ -13,7 +13,7 @@ error(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	(void)fprintf(stderr, "sxd: Error: ");
+	(void)fprintf(stderr, "sokoban: Error: ");
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fputc('\n', stderr);
@@ -26,7 +26,7 @@ warning(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	(void)fprintf(stderr, "sxd: Warning: ");
+	(void)fprintf(stderr, "sokoban: Warning: ");
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fputc('\n', stderr);
