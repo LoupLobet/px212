@@ -29,7 +29,7 @@ typedef struct  {
     struct Stack *prev;
 } Stack;
 
-enum {PLAYER, BOX, EMPTY};
-enum {WALL, FLOOR, TARGET};
+enum {PLAYER = '@', BOX = '$', EMPTY};
+enum {WALL = '#', FLOOR = ' ', TARGET = ' '};
 
 #endif
