@@ -24,30 +24,6 @@ static Pair	 getmapsize(FILE *fp);
 static int	 gotolevel(FILE *, int);
 static struct comment	*parsecomment(FILE *);
 
-int
-main(int argc, char *argv[])
-{
-	int i, j;
-	Map *m;
-
-	m = loadmap("levels.lvl", 802);
-	if (m == NULL) {
-		error("could not load map");
-	}
-
-	for (j = 0; j < m->size.y; j++) {
-		for (i = 0; i < m->size.x; i++) {
-			if (m->grid[i][j].content != EMPTY)
-				putchar(m->grid[i][j].content);
-			else
-				putchar(m->grid[i][j].type);
-		}
-		putchar('\n');
-	}
-
-	freemap(m);
-}
-
 static void
 freecomment(struct comment *cmt)
 {
@@ -253,8 +229,16 @@ parsecomment(FILE *fp)
 int
 savemap(Map *m, Stack *s, char *file)
 {
-	if ((fp = fopen(file, "r")) == NULL) {
+	FILE *fp;
+
+	if ((fp = fopen(file, "ra")) == NULL) {
 		warning("could not open file: %s", file);
-		return NULL;
+		return 1;
 	}
+	if (gotolevel(fp, m->id)) {
+
+	} else {
+
+	}
+	return 0;
 }
