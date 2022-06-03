@@ -19,9 +19,10 @@ struct comment {
 	union value val;
 };
 
-static struct comment	*parsecomment(FILE *);
+static void	 freecomment(struct comment *);
 static Pair	 getmapsize(FILE *fp);
 static int	 gotolevel(FILE *, int);
+static struct comment	*parsecomment(FILE *);
 
 int
 main(int argc, char *argv[])
@@ -29,7 +30,7 @@ main(int argc, char *argv[])
 	int i, j;
 	Map *m;
 
-	m = loadmap("levels.lvl", 82);
+	m = loadmap("levels.lvl", 802);
 	if (m == NULL) {
 		error("could not load map");
 	}
@@ -43,6 +44,74 @@ main(int argc, char *argv[])
 		}
 		putchar('\n');
 	}
+
+	freemap(m);
+}
+
+static void
+freecomment(struct comment *cmt)
+{
+	free(cmt->val.s);
+	free(cmt);
+}
+
+void
+freemap(Map *m)
+{
+	int i;
+
+	for (i = 0; i < m->size.x; i++)
+		free(m->grid[m->size.x]);
+	free(m->grid);
+	if (m->comment != NULL)
+		free(m->comment);
+	if (m->author != NULL)
+		free(m->comment);
+	free(m);
+}
+
+static Pair
+getmapsize(FILE *fp)
+{
+	Pair size = { 0, 0 };
+	int c;
+	int len;
+	int n;
+
+	len = 0;
+	n = 0;
+	while ((c = fgetc(fp)) != EOF && c != ';') {
+		if (c == '\n') {
+			size.y++;
+			if (size.x < len)
+				size.x = len;
+			len = 0;
+		} else
+			len++;
+		n++;
+
+	}
+	/* keep fp unchanged */
+	fseek(fp, -(n + 1), SEEK_CUR);
+	return size;
+}
+
+static int
+gotolevel(FILE *fp, int n)
+{
+	int c;
+	struct comment *cmt;
+
+	rewind(fp);
+	while ((c = fgetc(fp)) != EOF) {
+		if (c == ';') {
+			if ((cmt = parsecomment(fp)) == NULL)
+				return 1;
+			if (cmt->op == LEVEL && cmt->val.i == n)
+				return 0;
+		}
+	}
+	return 1;
 }
 
 Map *
@@ -84,8 +153,7 @@ loadmap(char *file, int n)
 		case PASS:
 			break;
 		}
-		free(cmt->val.s);
-		free(cmt);
+		freecomment(cmt);
 	}
 	/* fill the grid */
 	x = 0;
@@ -126,32 +194,6 @@ loadmap(char *file, int n)
 	}
 	fclose(fp);
 	return m;
-}
-
-static Pair
-getmapsize(FILE *fp)
-{
-	Pair size = { 0, 0 };
-	int c;
-	int len;
-	int n;
-
-	len = 0;
-	n = 0;
-	while ((c = fgetc(fp)) != EOF && c != ';') {
-		if (c == '\n') {
-			size.y++;
-			if (size.x < len)
-				size.x = len;
-			len = 0;
-		} else
-			len++;
-		n++;
-
-	}
-	/* keep fp unchanged */
-	fseek(fp, -(n + 1), SEEK_CUR);
-	return size;
 }
 
 static struct comment *
@@ -208,20 +250,11 @@ parsecomment(FILE *fp)
 	return cmt;
 }
 
-static int
-gotolevel(FILE *fp, int n)
+int
+savemap(Map *m, Stack *s, char *file)
 {
-	int c;
-	struct comment *cmt;
-
-	rewind(fp);
-	while ((c = fgetc(fp)) != EOF) {
-		if (c == ';') {
-			if ((cmt = parsecomment(fp)) == NULL)
-				return 1;
-			if (cmt->op == LEVEL && cmt->val.i == n)
-				return 0;
-		}
+	if ((fp = fopen(file, "r")) == NULL) {
+		warning("could not open file: %s", file);
+		return NULL;
 	}
-	return 1;
 }
