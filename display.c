@@ -17,27 +17,29 @@ void display(Map* map)
     printf("%s\n", ligne);
     free(ligne); //TODO opti
   }
+  printf("MAP n°%u from %s\n", map->id, map->author);
+  printf("%s\n", map->comment);
 }
 
 char spacetochar(Space *s){
   char c = '!';
   switch (s->type) {
     case WALL:
-      c = 219;
+      c = '#';
       break;
     case FLOOR:
       c = ' ';
       break;
     case TARGET:
-      c = 250;
+      c = '.';
       break;
   }
-  switch ((*s).content) {
+  switch (s->content) {
     case PLAYER:
-      c = 173;
+      c = '@';
       break;
     case BOX:
-      c = '#';
+      c = '$';
       break;
     case EMPTY:
       break;
