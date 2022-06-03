@@ -55,6 +55,17 @@ erealloc(void *q, unsigned int n)
 	return p;
 }
 
+char *
+estrdup(const char *s1)
+{
+	char *s2 = NULL;
+
+	s2 = strdup(s1);
+	if (s2 == NULL)
+		error("strdup");
+	return s2;
+}
+
 long
 estrtol(const char *nptr, int base)
 {
