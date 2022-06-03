@@ -1,4 +1,4 @@
 #include "sokoban.h"
 
 Stack	*pushstack(Stack **, Pair, int);
-Stack	 popstack(Stack **);
+int	 popstack(Stack **, Stack *);

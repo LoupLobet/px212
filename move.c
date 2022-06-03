@@ -19,21 +19,22 @@ pushstack(Stack **s, Pair move, int boxmoved)
 		p->move = move;
 		p->boxmoved = boxmoved;
 		p->prev = *s;
-		s = &p;
+		*s = p;
 	}
 	return *s;
 }
 
-Stack
-popstack(Stack **s)
+int
+popstack(Stack **s, Stack *pop)
 {
-	Stack p;
-	Stack *poped;
+	Stack *p;
 
-	p = **s;
-	poped = *s;
-	*s = (*s)->prev;
-	free(poped);
+	if (*s == NULL)
+		return 1;
+	*pop = **s;
+	p = *s;
+	*s = p->prev;
+	free(p);
 
-	return p;
+	return 0;
 }

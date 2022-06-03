@@ -35,13 +35,8 @@ main(int argc, char *argv[])
 	pushstack(&s, (Pair){ 1, 0 }, 0);
 	pushstack(&s, (Pair){ 0, -1}, 0);
 
-	pop = popstack(&s);
-	printf("{ %d, %d }, %d\n", pop.move.x, pop.move.y, pop.boxmoved);
-	pop = popstack(&s);
-	printf("{ %d, %d }, %d\n", pop.move.x, pop.move.y, pop.boxmoved);
-	pop = popstack(&s);
-	printf("{ %d, %d }, %d\n", pop.move.x, pop.move.y, pop.boxmoved);
-
+	while (!popstack(&s, &pop))
+		printf("{ %d, %d }, %d\n", pop.move.x, pop.move.y, pop.boxmoved);
 
 	return 0;
 }
