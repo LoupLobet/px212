@@ -5,8 +5,11 @@
 
 #include "loader.h"
 #include "util.h"
+#include "sokoban.h"
 
-enum { AUTHOR, COMMENT, LEVEL, MAXLEVEL, PASS };
+#define NO_PLAYER { -1, -1 };
+
+enum { AUTHOR, COMMENT, LEVEL, PASS };
 
 union value {
 	int i;
@@ -25,6 +28,7 @@ struct comment {
 };
 
 static struct comment	*parsecomment(FILE *);
+static Pair	 getmapsize(FILE *fp);
 static int	 gotolevel(FILE *, int);
 
 struct lvl *table;
@@ -32,21 +36,141 @@ struct lvl *table;
 int
 main(int argc, char *argv[])
 {
-	FILE *fp;
-	int c;
+	int i, j;
+	Map *m;
 
-	if ((fp = fopen("levels.lvl", "r")) == NULL)
-		error("could not open file: %s\n", argv[1]);
-	if (gotolevel(fp, estrtol(argv[1], 10)))
-		error("no such level: %s\n", argv[1]);
-	while ((c = fgetc(fp))!= EOF) {
-		if (c == ';')
-			break;
-		putchar(c);
+	m = loadmap("levels.lvl", 1);
+
+	for (j = 0; j < m->size.y; j++) {
+		for (i = 0; i < m->size.x; i++) {
+			if (m->grid[i][j].content != EMPTY)
+				putchar(m->grid[i][j].content);
+			else
+				putchar(m->grid[i][j].type);
+		}
+		putchar('\n');
 	}
 }
 
-struct comment *
+Map *
+loadmap(char *file, int n)
+{
+	int i;
+	int c;
+	int x, y;
+	struct comment *cmt;
+	FILE *fp;
+	Map *m;
+
+	if ((fp = fopen(file, "r")) == NULL) {
+		warning("could not open file: %s", file);
+		return NULL;
+	}
+	if (gotolevel(fp, n)) {
+		warning("no such level: %s", file);
+		return NULL;
+	}
+	m = emalloc(sizeof(Map));
+	m->size = getmapsize(fp);
+	m->id = n;
+	m->player = (Pair)NO_PLAYER;
+	m->grid = emalloc(sizeof(Space *) * m->size.x);
+	for (i = 0; i < m->size.x; i++)
+		m->grid[i] = emalloc(sizeof(Space) * m->size.y);
+	/* fill the grid */
+	x = 0;
+	y = 0;
+	while ((c = fgetc(fp)) != EOF) {
+		if (c == '\n') {
+			x = 0;
+			y++;
+			continue;
+		}
+		if (c == ';') {
+			if (x == 0 && y == 0) {
+				/* additional comment before map grid */
+				cmt = parsecomment(fp);
+				switch (cmt->op) {
+				case AUTHOR:
+					m->author = estrdup(cmt->val.s);
+					break;
+				case COMMENT:
+					m->comment = estrdup(cmt->val.s);
+					break;
+				case LEVEL:
+					/* empty map, error */
+					warning("empty map: %d", n);
+					return NULL;
+				case PASS:
+					break;
+				}
+				free(cmt);
+			} else {
+				/* map grid not empty, new comment signals the end of the map */
+				break;
+			}
+		} else {
+			switch (c) {
+			case FLOOR:
+				m->grid[x][y].type = FLOOR;
+				m->grid[x][y].content = EMPTY;
+				break;
+			case WALL:
+				m->grid[x][y].type = WALL;
+				m->grid[x][y].content = EMPTY;
+				break;
+			case TARGET:
+				m->grid[x][y].type = TARGET;
+				m->grid[x][y].content = EMPTY;
+				break;
+			case PLAYER:
+				m->grid[x][y].type = FLOOR;
+				m->grid[x][y].content = PLAYER;
+				m->player = (Pair){ x, y };
+				break;
+			case BOX:
+				m->grid[x][y].type = FLOOR;
+				m->grid[x][y].content = BOX;
+				break;
+			default:
+				warning("unknown character %c, in map: %d", c, n);
+				return NULL;
+			}
+			x++;
+		}
+	}
+	if (m->player.x == -1 && m->player.y == -1) { // voir pour une egalite plus propre avec macro ?
+		warning("no player in map: %d");
+		return NULL;
+	}
+	fclose(fp);
+	return m;
+}
+
+static Pair
+getmapsize(FILE *fp)
+{
+	Pair size = { 0, 0 };
+	int c;
+	int len;
+	int n;
+
+	len = 0;
+	n = 0;
+	while ((c = fgetc(fp)) != EOF && c != ';') {
+		if (c == '\n' && size.x < len) {
+			size.x = len;
+			size.y++;
+		}
+		len++;
+		n++;
+	}
+	/* keep fp unchanged */
+	fseek(fp, -n, SEEK_CUR);
+	return size;
+}
+
+static struct comment *
 parsecomment(FILE *fp)
 {
 	int c;
@@ -90,9 +214,6 @@ parsecomment(FILE *fp)
 	} else if (!strcmp(op, "LEVEL")) {
 		cmt->op = LEVEL;
 		cmt->val.i = (int)estrtol(val, 10);
-	} else if (!strcmp(op, "MAXLEVEL")) {
-		cmt->op = MAXLEVEL;
-		cmt->val.i = (int)estrtol(val, 10);
 	} else {
 		cmt->op = PASS;
 	}
@@ -102,7 +223,7 @@ parsecomment(FILE *fp)
 	return cmt;
 }
 
-int
+static int
 gotolevel(FILE *fp, int n)
 {
 	int c;
