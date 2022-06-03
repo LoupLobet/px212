@@ -1,4 +1,18 @@
-typedef struct Map {
+#ifndef SOKOBAN_STRUCT_DEF
+#define SOKOBAN_STRUCT_DEF
+
+typedef struct  {
+    int type;
+    int content;
+} Space;
+
+typedef struct {
+    int x;
+    int y;
+} Pair;
+
+
+typedef struct {
     Pair size;
     Pair player;
     Pair cursor;
@@ -6,23 +20,16 @@ typedef struct Map {
     char *comment;
     int id;
     char *author;
-};
+} Map;
 
-typedef struct Space {
-    int type;
-    int content;
-};
 
-typedef struct Pair {
-    int x;
-    int y;
-};
-
-typedef struct Stack {
+typedef struct  {
     Pair move;
-    int boxmoved;
+    int boxmoved;// Boolean : if a box was moved
     struct Stack *prev;
-};
+} Stack;
 
 enum {PLAYER, BOX, EMPTY};
 enum {WALL, FLOOR, TARGET};
+
+#endif
