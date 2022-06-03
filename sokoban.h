@@ -1,9 +1,10 @@
+#ifndef SOKOBAN_STRUCT_DEF
+#define SOKOBAN_STRUCT_DEF
+
 typedef struct  {
     int type;
     int content;
 } Space;
-
-
 
 typedef struct {
     int x;
@@ -30,3 +31,5 @@ typedef struct  {
 
 enum {PLAYER, BOX, EMPTY};
 enum {WALL, FLOOR, TARGET};
+
+#endif
