@@ -38,12 +38,12 @@ freemap(Map *m)
 	int i;
 
 	for (i = 0; i < m->size.x; i++)
-		free(m->grid[m->size.x]);
+		free(m->grid[i]);
 	free(m->grid);
 	if (m->comment != NULL)
 		free(m->comment);
 	if (m->author != NULL)
-		free(m->comment);
+		free(m->author);
 	free(m);
 }
 
