@@ -12,7 +12,6 @@ main(int argc, char *argv[])
 	int i, j;
 	Map *m;
 	Stack *s;
-	Stack pop;
 
 	m = loadmap("levels.lvl", 69);
 	if (m == NULL) {
@@ -35,8 +34,7 @@ main(int argc, char *argv[])
 	pushstack(&s, (Pair){ 1, 0 }, 0);
 	pushstack(&s, (Pair){ 0, -1}, 0);
 
-	while (!popstack(&s, &pop))
-		printf("{ %d, %d }, %d\n", pop.move.x, pop.move.y, pop.boxmoved);
-
+	if (savemap(m, s, "saves.save"))
+		error("could not save map %d to: %d", m->id, "saves.save");
 	return 0;
 }

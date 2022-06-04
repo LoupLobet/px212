@@ -6,6 +6,7 @@
 #include "loader.h"
 #include "util.h"
 #include "sokoban.h"
+#include "move.h"
 
 enum { AUTHOR, COMMENT, LEVEL, PASS };
 
@@ -229,16 +230,45 @@ parsecomment(FILE *fp)
 int
 savemap(Map *m, Stack *s, char *file)
 {
+	char bufpath[] = "/tmp/bufsokoban";
+	Stack pop;
+	long int offset;
+	int c;
+	int i;
 	FILE *fp;
+	FILE *buf;
 
-	if ((fp = fopen(file, "ra")) == NULL) {
+	if ((fp = fopen(file, "a+")) == NULL) {
 		warning("could not open file: %s", file);
 		return 1;
 	}
+	/* check if a move set is already saved in the file for this map */
 	if (gotolevel(fp, m->id)) {
-
+		/* simply append to end of file */
+		fseek(fp, 0, SEEK_END);
+		fprintf(fp, ";LEVEL %d\n", m->id);
+		while (!popstack(&s, &pop))
+			fprintf(fp, "%d,%d,%d,", pop.move.x, pop.move.y, pop.boxmoved);
+		fputc('\n', fp);
 	} else {
-
+		/* edit old move set */
+		if ((buf = fopen(bufpath, "w")) == NULL) {
+			warning("could not open file: %s", file);
+			return 1;
+		}
+		offset = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+		for (i = 0; (c = getc(fp)) != EOF && i < offset; i++)
+			fputc(c, buf);
+		while ((c = getc(fp)) != EOF && c != '\n');
+		while (!popstack(&s, &pop))
+			fprintf(buf, "%d,%d,%d,", pop.move.x, pop.move.y, pop.boxmoved);
+		fputc('\n', buf);
+		while ((c = getc(fp)) != EOF)
+			fputc(c, buf);
+		fclose(buf);
+		rename(bufpath, file);
 	}
+	fclose(fp);
 	return 0;
 }
