@@ -1,4 +1,12 @@
 #include "sokoban.h"
+#include "util.h"
+#include <stdio.h>
+#include <stdlib.h> 
 
-Stack	*pushstack(Stack **, Pair, int);
+
+int move (Map *m, int largeur, Stack **movement,int longueur);
+int canwemove(Map *m, int x , int y);
+Stack *pushstack(Stack **s, Pair move, int boxmoved);
 int	 popstack(Stack **, Stack *);
+int undomove(Stack **movement, Map *m);
+int which_move(Map *m,Stack **movement);
