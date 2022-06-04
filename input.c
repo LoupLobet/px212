@@ -14,6 +14,12 @@ int io(void) {
           return 27;
 	  else if (ch == 122)
 	  	  return 'z';
+	  else if (ch == 114)
+	  	  return 'r';
+	  else if (ch == 115)
+	  	  return 's';
+	
+				
           
       switch (key) {
     
@@ -24,7 +30,6 @@ int io(void) {
         default:  return 'P'; break;
       }
 }
-
    
  
 

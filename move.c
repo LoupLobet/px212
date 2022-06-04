@@ -64,11 +64,13 @@ int which_move(Map *m,Stack **movement){
         case 'L': move (m,-1,movement,0); break;
         case 'R': move (m,1,movement,0); break;
         case 27: return 27;
+		case 'z': return 'z';
+		case 'r': return 'r';
+		case 's': return 's';
         default: break;
     }
 
 }
-
 
 
 Stack * pushstack(Stack **s, Pair move, int boxmoved)

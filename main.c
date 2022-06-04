@@ -3,64 +3,119 @@
 
 #include "util.h"
 #include "sokoban.h"
-#include "loader.h"
-#include "move.h"
+
+
+
+int verifie_gagne(Map *m){
+	int i,j;
+	for (j = 0; j < m->size.y; j++) {
+		for (i = 0; i < m->size.x; i++) {
+			if (m->grid[i][j].type == TARGET && m->grid[i][j].content != BOX){
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
 
 int
 main(int argc, char *argv[])
 {
 
-	int i, j;
+	    int i, j;
 	int k = 0;
 	Map *m;
 	Stack *s;
 	int choix ;
 	int coup = 0;
-	int nbre_target = 0;
+	int level = 1;
 	
 
-	m = loadmap("levels.lvl", 1);
+	m = loadmap("levels.lvl", level);
 	if (m == NULL) {
 		error("could not load map");
 	}
-
+	printf("\nVous avez fait %d coups\n",coup);
 	for (j = 0; j < m->size.y; j++) {
 		for (i = 0; i < m->size.x; i++) {
 			if (m->grid[i][j].content != EMPTY)
 				putchar(m->grid[i][j].content);
 			else{
-				if (m->grid[i][j].type == TARGET){
-					nbre_target++;
-				}
-				
 				putchar(m->grid[i][j].type);
 			}
 		}
 		putchar('\n');
 	}
+	printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+
 	
-    while ((choix = which_move(m,&s)) != 27) // 27= ESC Key
-    {
-        coup ++;
-		if (choix == 'z') {
-			undomove(&s,m);
+    while ((choix = which_move(m,&s)) != 27){
+		if (!verifie_gagne(m)){
+		
+			coup ++;
+			if (choix == 'z') {
+				coup -=2;
+				undomove(&s,m);
+			}
+			else if (choix == 's')
+			{
+				savemap(m, s, "levels.save");
+			}
+			else if (choix == 'r'){
+				coup = 0;
+				m = loadmap("levels.lvl", level);
+				if (m == NULL) {
+					error("could not load map");
+				}
+			}
+			printf("\nVous avez fait %d coups\n",coup);
+			for (j = 0; j < m->size.y; j++) {
+					for (i = 0; i < m->size.x; i++) {
+						if (m->grid[i][j].content != EMPTY)
+							putchar(m->grid[i][j].content);
+						else
+							putchar(m->grid[i][j].type);
+					}
+				putchar('\n');
+				}
+				printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+		
 		}
-		else if (choix == 's')
-		{
-			if (savemap(m, s, "saves.save"))
-				error("could not save map %d to: %d", m->id, "saves.save");
-		}
-		for (j = 0; j < m->size.y; j++) {
+		else{ // TODO: make display function and save solution
+			for (j = 0; j < m->size.y; j++) {
+					for (i = 0; i < m->size.x; i++) {
+						if (m->grid[i][j].content != EMPTY)
+							putchar(m->grid[i][j].content);
+						else
+							putchar(m->grid[i][j].type);
+					}
+				putchar('\n');
+				}
+				printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+			printf("\nVous avez gagne le niveau %d en %d coups , passons au suivant\n",level,coup);
+			
+			level ++;
+			coup = 0;
+			m = loadmap("levels.lvl", level);
+			if (m == NULL) {
+				error("could not load map");
+			}
+			for (j = 0; j < m->size.y; j++) {
 				for (i = 0; i < m->size.x; i++) {
 					if (m->grid[i][j].content != EMPTY)
 						putchar(m->grid[i][j].content);
-					else
+					else{
 						putchar(m->grid[i][j].type);
+					}
 				}
-			putchar('\n');
+				putchar('\n');
 			}
-     		printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n");
+			printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+
+		}
 	}
+		
+		
 
     
 	freemap(m);

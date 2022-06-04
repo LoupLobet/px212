@@ -424,6 +424,12 @@ int io(void) {
           return 27;
 	  else if (ch == 122)
 	  	  return 'z';
+	  else if (ch == 114)
+	  	  return 'r';
+	  else if (ch == 115)
+	  	  return 's';
+	
+				
           
       switch (key) {
     
@@ -500,6 +506,9 @@ int which_move(Map *m,Stack **movement){
         case 'L': move (m,-1,movement,0); break;
         case 'R': move (m,1,movement,0); break;
         case 27: return 27;
+		case 'z': return 'z';
+		case 'r': return 'r';
+		case 's': return 's';
         default: break;
     }
 
@@ -602,6 +611,17 @@ void listeAffiche(Stack * ptr){
 	printf("\n") ;
 	}
 
+int verifie_gagne(Map *m){
+	int i,j;
+	for (j = 0; j < m->size.y; j++) {
+		for (i = 0; i < m->size.x; i++) {
+			if (m->grid[i][j].type == TARGET && m->grid[i][j].content != BOX){
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
 
 int main(int argc, char const *argv[])
 {
@@ -611,61 +631,96 @@ int main(int argc, char const *argv[])
 	Stack *s;
 	int choix ;
 	int coup = 0;
-	int nbre_target = 0;
+	int level = 1;
 	
 
-	m = loadmap("levels.lvl", 1);
+	m = loadmap("levels.lvl", level);
 	if (m == NULL) {
 		error("could not load map");
 	}
-
+	printf("\nVous avez fait %d coups\n",coup);
 	for (j = 0; j < m->size.y; j++) {
 		for (i = 0; i < m->size.x; i++) {
 			if (m->grid[i][j].content != EMPTY)
 				putchar(m->grid[i][j].content);
 			else{
-				if (m->grid[i][j].type == TARGET){
-					nbre_target++;
-				}
-				
 				putchar(m->grid[i][j].type);
 			}
 		}
 		putchar('\n');
 	}
-	/*int *target[nbre_target][2];
-	for (j = 0; j < m->size.y; j++) {
-		for (i = 0; i < m->size.x; i++) {
-			if (m->grid[i][j].type == TARGET){
-					target[k][0]= i;
-					target[k][1]= j;
-					k++;
+	printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
 
+	
+    while ((choix = which_move(m,&s)) != 27){
+		if (!verifie_gagne(m)){
+		
+			coup ++;
+			if (choix == 'z') {
+				coup -=2;
+				undomove(&s,m);
+			}
+			else if (choix == 's')
+			{
+				savemap(m, s, "levels.save");
+			}
+			else if (choix == 'r'){
+				coup = 0;
+				m = loadmap("levels.lvl", level);
+				if (m == NULL) {
+					error("could not load map");
 				}
+			}
+			printf("\nVous avez fait %d coups\n",coup);
+			for (j = 0; j < m->size.y; j++) {
+					for (i = 0; i < m->size.x; i++) {
+						if (m->grid[i][j].content != EMPTY)
+							putchar(m->grid[i][j].content);
+						else
+							putchar(m->grid[i][j].type);
+					}
+				putchar('\n');
+				}
+				printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+		
 		}
-	}
-*/
-    while ((choix = which_move(m,&s)) != 27) // 27= ESC Key
-    {
-        coup ++;
-		if (choix == 'z') {
-			undomove(&s,m);
-		}
-		else if (choix == 's')
-		{
-			savemap(m, s, "levels.save");
-		}
-		for (j = 0; j < m->size.y; j++) {
+		else{// TODO: make display function and save solution
+			for (j = 0; j < m->size.y; j++) {
+					for (i = 0; i < m->size.x; i++) {
+						if (m->grid[i][j].content != EMPTY)
+							putchar(m->grid[i][j].content);
+						else
+							putchar(m->grid[i][j].type);
+					}
+				putchar('\n');
+				}
+				printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+			printf("\nVous avez gagne le niveau %d en %d coups , passons au suivant\n",level,coup);
+			
+			level ++;
+			coup = 0;
+			m = loadmap("levels.lvl", level);
+			if (m == NULL) {
+				error("could not load map");
+			}
+			for (j = 0; j < m->size.y; j++) {
 				for (i = 0; i < m->size.x; i++) {
 					if (m->grid[i][j].content != EMPTY)
 						putchar(m->grid[i][j].content);
-					else
+					else{
 						putchar(m->grid[i][j].type);
+					}
 				}
-			putchar('\n');
+				putchar('\n');
 			}
-     		printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n");
+			printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+
+		}
 	}
+		
+		
+        
+	
 
 
 
@@ -679,4 +734,3 @@ int main(int argc, char const *argv[])
 }
 
 	
-    
