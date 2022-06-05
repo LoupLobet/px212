@@ -38,12 +38,12 @@ freemap(Map *m)
 	int i;
 
 	for (i = 0; i < m->size.x; i++)
-		free(m->grid[m->size.x]);
+		free(m->grid[i]);
 	free(m->grid);
 	if (m->comment != NULL)
 		free(m->comment);
 	if (m->author != NULL)
-		free(m->comment);
+		free(m->author);
 	free(m);
 }
 
@@ -66,7 +66,6 @@ getmapsize(FILE *fp)
 		} else
 			len++;
 		n++;
-
 	}
 	/* keep fp unchanged */
 	fseek(fp, -(n + 1), SEEK_CUR);
@@ -111,6 +110,8 @@ loadmap(char *file, int n)
 	}
 	m = emalloc(sizeof(Map));
 	m->id = n;
+	m->comment = NULL;
+	m->author = NULL;
 	m->player = (Pair){ -1, -1 };
 
 	/* catch extra comments */
@@ -132,13 +133,22 @@ loadmap(char *file, int n)
 		}
 		freecomment(cmt);
 	}
+	/*
+	 * avoid the first map space to be blown
+	 * by the "extra comment loop" condition
+	 */
+	fseek(fp, -1, SEEK_CUR);
+
 	/* fill the grid */
 	x = 0;
 	y = 0;
 	m->size = getmapsize(fp);
 	m->grid = emalloc(sizeof(Space) * m->size.x);
-	for (i = 0; i < m->size.x; i++)
+	for (i = 0; i < m->size.x; i++) {
 		m->grid[i] = emalloc(sizeof(Space) * m->size.y);
+		memset(m->grid[i], FLOOR, m->size.y);
+	}
+
 	while ((c = fgetc(fp)) != EOF && c != ';') {
 		if (c == '\n') {
 			x = 0;
