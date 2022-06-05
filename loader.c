@@ -148,7 +148,6 @@ loadmap(char *file, int n)
 		m->grid[i] = emalloc(sizeof(Space) * m->size.y);
 		memset(m->grid[i], FLOOR, m->size.y);
 	}
-
 	while ((c = fgetc(fp)) != EOF && c != ';') {
 		if (c == '\n') {
 			x = 0;
@@ -197,7 +196,7 @@ parsecomment(FILE *fp)
 	c = 0;
 	opsize = 16;
 	op = emalloc(opsize);
-	for (i = 0; (c = fgetc(fp)) >= 0 && c != ' '; i++) {
+	for (i = 0; (c = fgetc(fp)) && c != ' '; i++) {
 		if (c == EOF || c == '\n') {
 			return cmt;
 		}

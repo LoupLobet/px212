@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #include "move.h"
 
 //int move (Map *m, int largeur,Stack **movement, int longueur){
@@ -71,87 +70,8 @@
 //
 //}
 
-
 Stack *
 pushstack(Stack **s, Pair move, int boxmoved)
-=======
-
-#include "move.h"
-
-int move (Map *m, int largeur,Stack **movement, int longueur){
-
-    
-    int deplacementJoueurEnLargeur = (*m).player.x + largeur;
-    int deplacementJoueurEnLongueur = (*m).player.y + longueur;
-    int boxmoved;
-    int result = canwemove(m,deplacementJoueurEnLargeur, deplacementJoueurEnLongueur);
-    int result2;
-    if (result == 1 )
-    {
-        
-        result2 = canwemove(m, deplacementJoueurEnLargeur + largeur, deplacementJoueurEnLongueur + longueur);
-        if (result2 ==1)
-        {
-            return 0;
-        }
-        else if (result2 == 2) {
-			boxmoved = 1;
-        	(*m).grid[(*m).player.x][(*m).player.y].content = EMPTY;
-            (*m).player.x = deplacementJoueurEnLargeur;
-            (*m).player.y = deplacementJoueurEnLongueur;
-            (*m).grid[deplacementJoueurEnLargeur ][deplacementJoueurEnLongueur].content = PLAYER;
-            (*m).grid[deplacementJoueurEnLargeur + largeur][deplacementJoueurEnLongueur + longueur].content = BOX;
-            
-        }
-        else{
-            return 0;
-        }
-        
-
-        
-    }
-    else if (result ==2){
-			
-            boxmoved = 0;
-            (*m).grid[(*m).player.x][(*m).player.y].content = EMPTY;
-            (*m).player.x = deplacementJoueurEnLargeur;
-            (*m).player.y = deplacementJoueurEnLongueur;
-            
-            (*m).grid[deplacementJoueurEnLargeur][deplacementJoueurEnLongueur].content = PLAYER;
-            
-        }
-    else{
-        return 0;
-    }
-    
-    
-    
-    pushstack(movement,(Pair){largeur,longueur},boxmoved);
-    
-
-}
-
-
-int which_move(Map *m,Stack **movement){
-    char mov;
-    mov = io();
-    switch (mov) {
-        case 'U': move (m,0,movement,-1); break;
-        case 'D': move (m,0,movement,1); break;
-        case 'L': move (m,-1,movement,0); break;
-        case 'R': move (m,1,movement,0); break;
-        case 27: return 27;
-		case 'z': return 'z';
-		case 'r': return 'r';
-		case 's': return 's';
-        default: break;
-    }
-
-}
-
-
-Stack * pushstack(Stack **s, Pair move, int boxmoved)
->>>>>>> 8456c9294d5f8357fe0c5381b81d69a9aa964eb2
 {
 	Stack *p;
 
@@ -170,12 +90,8 @@ Stack * pushstack(Stack **s, Pair move, int boxmoved)
 	return *s;
 }
 
-<<<<<<< HEAD
 int
 popstack(Stack **s, Stack *pop)
-=======
-int popstack(Stack **s, Stack *pop)
->>>>>>> 8456c9294d5f8357fe0c5381b81d69a9aa964eb2
 {
 	Stack *p;
 
@@ -189,7 +105,6 @@ int popstack(Stack **s, Stack *pop)
 	return 0;
 }
 
-<<<<<<< HEAD
 int
 canmove(Map *m, Pair move)
 {
@@ -284,11 +199,11 @@ int canwemove(Map *m,int x , int y){
         return 1;
     }
     else if ((*m).grid[x][y].content == EMPTY)
-    {   
+    {
         return 2;
-        
+
     }
-	
+
 }
 
 int undomove(Stack **movement, Map *m){
@@ -300,13 +215,13 @@ int undomove(Stack **movement, Map *m){
 		return EXIT_FAILURE;
 	}
 	else {
-	
-		
+
+
 		p = *movement;
 		*movement = p->prev;
-		
+
 		(*m).grid[(*m).player.x][(*m).player.y].content = EMPTY;
-	
+
 		(*m).player.x -=  p->move.x;
 		(*m).player.y -= p->move.y;
 		(*m).grid[(*m).player.x][(*m).player.y].content = PLAYER;
