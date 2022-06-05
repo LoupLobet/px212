@@ -13,7 +13,7 @@ main(int argc, char *argv[])
 	Map *m;
 	Stack *s;
 
-	m = loadmap("levels.lvl", 69);
+	m = loadmap("levels.lvl", 6);
 	if (m == NULL) {
 		error("could not load map");
 	}
@@ -29,12 +29,12 @@ main(int argc, char *argv[])
 	}
 	freemap(m);
 
-	s = NULL;
-	pushstack(&s, (Pair){ 1, 0 }, 0);
-	pushstack(&s, (Pair){ 1, 0 }, 0);
-	pushstack(&s, (Pair){ 0, -1}, 0);
+//	s = NULL;
+//	pushstack(&s, (Pair){ 1, 0 }, 0);
+//	pushstack(&s, (Pair){ 1, 0 }, 0);
+//	pushstack(&s, (Pair){ 0, -1}, 0);
 
-	if (savemap(m, s, "saves.save"))
-		error("could not save map %d to: %d", m->id, "saves.save");
+//	if (savemap(m, s, "saves.save"))
+//		error("could not save map %d to: %d", m->id, "saves.save");
 	return 0;
 }
