@@ -1,45 +1,3 @@
-<<<<<<< HEAD
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "util.h"
-#include "sokoban.h"
-#include "loader.h"
-#include "move.h"
-
-int
-main(int argc, char *argv[])
-{
-	int i, j;
-	Map *m;
-	Stack *s;
-
-	m = loadmap("levels.lvl", 6);
-	if (m == NULL) {
-		error("could not load map");
-	}
-
-	for (j = 0; j < m->size.y; j++) {
-		for (i = 0; i < m->size.x; i++) {
-			if (m->grid[i][j].content != EMPTY)
-				putchar(m->grid[i][j].content);
-			else
-				putchar(m->grid[i][j].type);
-		}
-		putchar('\n');
-	}
-	freemap(m);
-
-//	s = NULL;
-//	pushstack(&s, (Pair){ 1, 0 }, 0);
-//	pushstack(&s, (Pair){ 1, 0 }, 0);
-//	pushstack(&s, (Pair){ 0, -1}, 0);
-
-//	if (savemap(m, s, "saves.save"))
-//		error("could not save map %d to: %d", m->id, "saves.save");
-	return 0;
-}
-=======
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -60,24 +18,34 @@ int verifie_gagne(Map *m){
 	return 1;
 }
 
-int
-main(int argc, char *argv[])
-{
 
-	    int i, j;
-	int k = 0;
-	Map *m;
-	Stack *s;
-	int choix ;
-	int coup = 0;
-	int level = 1;
-	
+int verifie_gagne(Map *m){
+	int i,j;
+	for (j = 0; j < m->size.y; j++) {
+		for (i = 0; i < m->size.x; i++) {
+			if (m->grid[i][j].type == TARGET && m->grid[i][j].content != BOX){
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
 
-	m = loadmap("levels.lvl", level);
+
+
+Map* load_map(Map *m, int level, char *file){
+	m = loadmap(file, level);
 	if (m == NULL) {
 		error("could not load map");
 	}
-	printf("\nVous avez fait %d coups\n",coup);
+	return m;
+
+}
+
+void display_temp(Map *m, int coup){
+	int i, j;
+	printf("\e[1;1H\e[2J");
+	printf("\nYou made %d strokes\n",coup);
 	for (j = 0; j < m->size.y; j++) {
 		for (i = 0; i < m->size.x; i++) {
 			if (m->grid[i][j].content != EMPTY)
@@ -88,7 +56,52 @@ main(int argc, char *argv[])
 		}
 		putchar('\n');
 	}
-	printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+	printf("\n - Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+	
+}
+
+Map* initialisation(Map *m){
+	printf("\n=======Game of Sokoban===========\n");
+	printf("\nPress 'a' to load an old save\n");
+	printf("\nPress 'b' to load a new game\n\n\n");
+	int choose = io();
+	if (choose == 'a'){
+		char *file = "levels.save";
+		m = load_map(m,0,file);
+	}
+	else if (choose == 'b'){
+		char *file = "levels.lvl";
+		m = load_map(m,1,file);
+		display_temp(m,0);
+	}
+	else{
+		printf("\nWrong choice\n");
+		exit(EXIT_FAILURE);
+	}
+	return m;
+
+}
+
+
+int
+main(int argc, char *argv[])
+{
+
+	Map *m;
+	Stack *s;
+	int choix ;
+	int coup = 0;
+	int level = 1;
+
+	if (!configureTerminal())
+	{
+		error("Impossible de configurer le terminal");
+		return 0;
+	}
+	
+	
+
+	m = initialisation(m);
 
 	
     while ((choix = which_move(m,&s)) != 27){
@@ -102,72 +115,32 @@ main(int argc, char *argv[])
 			else if (choix == 's')
 			{
 				savemap(m, s, "levels.save");
+				return 0;
 			}
 			else if (choix == 'r'){
 				coup = 0;
-				m = loadmap("levels.lvl", level);
-				if (m == NULL) {
-					error("could not load map");
-				}
+				char *file = "levels.lvl";
+				m = load_map(m, level,file);
 			}
-			printf("\nVous avez fait %d coups\n",coup);
-			for (j = 0; j < m->size.y; j++) {
-					for (i = 0; i < m->size.x; i++) {
-						if (m->grid[i][j].content != EMPTY)
-							putchar(m->grid[i][j].content);
-						else
-							putchar(m->grid[i][j].type);
-					}
-				putchar('\n');
-				}
-				printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+			display_temp(m,coup);
 		
 		}
-		else{ // TODO: make display function and save solution
-			for (j = 0; j < m->size.y; j++) {
-					for (i = 0; i < m->size.x; i++) {
-						if (m->grid[i][j].content != EMPTY)
-							putchar(m->grid[i][j].content);
-						else
-							putchar(m->grid[i][j].type);
-					}
-				putchar('\n');
-				}
-				printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
-			printf("\nVous avez gagne le niveau %d en %d coups , passons au suivant\n",level,coup);
+		else{// TODO: make display function and save solution
+			display_temp(m,coup);
+			
 			
 			level ++;
+			int tmp = coup +1 ;
 			coup = 0;
-			m = loadmap("levels.lvl", level);
-			if (m == NULL) {
-				error("could not load map");
-			}
-			for (j = 0; j < m->size.y; j++) {
-				for (i = 0; i < m->size.x; i++) {
-					if (m->grid[i][j].content != EMPTY)
-						putchar(m->grid[i][j].content);
-					else{
-						putchar(m->grid[i][j].type);
-					}
-				}
-				putchar('\n');
-			}
-			printf("\n- Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+			char *file = "levels.lvl";
+			m = load_map(m,level,file);
+			display_temp(m,coup);
+			printf("\nYou win level %d in %d strokes , you are level %d\n",level,tmp, level--);
 
 		}
 	}
 		
-		
 
-    
-	freemap(m);
-
-	s = NULL;
-	pushstack(&s, (Pair){ 1, 0 }, 0);
-	pushstack(&s, (Pair){ 1, 0 }, 0);
-	pushstack(&s, (Pair){ 0, -1}, 0);
-
-	
 	return 0;
+    
 }
->>>>>>> 3e4ae1c241ebaa2d789fb296a84245a0e030bdb3
