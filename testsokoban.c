@@ -3,7 +3,6 @@
 #include "loader.h"
 #include "move.h"
 #include <string.h>
-#include "display.h"
 #include "util.h"
 #include "input.h"
 #include <stdarg.h>
@@ -121,12 +120,12 @@ freemap(Map *m)
 	int i;
 
 	for (i = 0; i < m->size.x; i++)
-		free(m->grid[m->size.x]);
+		free(m->grid[i]);
 	free(m->grid);
 	if (m->comment != NULL)
 		free(m->comment);
 	if (m->author != NULL)
-		free(m->comment);
+		free(m->author);
 	free(m);
 }
 
@@ -149,7 +148,6 @@ getmapsize(FILE *fp)
 		} else
 			len++;
 		n++;
-
 	}
 	/* keep fp unchanged */
 	fseek(fp, -(n + 1), SEEK_CUR);
@@ -194,6 +192,8 @@ loadmap(char *file, int n)
 	}
 	m = emalloc(sizeof(Map));
 	m->id = n;
+	m->comment = NULL;
+	m->author = NULL;
 	m->player = (Pair){ -1, -1 };
 
 	/* catch extra comments */
@@ -215,13 +215,21 @@ loadmap(char *file, int n)
 		}
 		freecomment(cmt);
 	}
+	/*
+	 * avoid the first map space to be blown
+	 * by the "extra comment loop" condition
+	 */
+	fseek(fp, -1, SEEK_CUR);
+
 	/* fill the grid */
 	x = 0;
 	y = 0;
 	m->size = getmapsize(fp);
 	m->grid = emalloc(sizeof(Space) * m->size.x);
-	for (i = 0; i < m->size.x; i++)
+	for (i = 0; i < m->size.x; i++) {
 		m->grid[i] = emalloc(sizeof(Space) * m->size.y);
+		memset(m->grid[i], FLOOR, m->size.y);
+	}
 	while ((c = fgetc(fp)) != EOF && c != ';') {
 		if (c == '\n') {
 			x = 0;
@@ -270,7 +278,7 @@ parsecomment(FILE *fp)
 	c = 0;
 	opsize = 16;
 	op = emalloc(opsize);
-	for (i = 0; (c = fgetc(fp)) >= 0 && c != ' '; i++) {
+	for (i = 0; (c = fgetc(fp)) && c != ' '; i++) {
 		if (c == EOF || c == '\n') {
 			return cmt;
 		}
@@ -360,11 +368,10 @@ savemap(Map *m, Stack *s, char *file)
 
 
 
+
 int io(void) {
 
   int key;
-      
-    
 
   char r[MAXSIZE];
 	int c;  
@@ -425,68 +432,67 @@ int configureTerminal()
 
 
 
-int move (Map *m, int largeur,Stack **movement, int longueur){
+
+
+int move (Map *m, Pair move,Stack **s){
 
     
-    int deplacementJoueurEnLargeur = (*m).player.x + largeur;
-    int deplacementJoueurEnLongueur = (*m).player.y + longueur;
+    int deltax = (*m).player.x + move.x;
+    int deltay = (*m).player.y + move.y;
     int boxmoved;
-    int result = canwemove(m,deplacementJoueurEnLargeur, deplacementJoueurEnLongueur);
-    int result2;
-    if (result == 1 )
+    if (canwemove(m,(Pair){deltax, deltay},move))
     {
         
-        result2 = canwemove(m, deplacementJoueurEnLargeur + largeur, deplacementJoueurEnLongueur + longueur);
-        if (result2 ==1)
+        if ((*m).grid[deltax][deltay].content == BOX)
         {
-            return 0;
+            (*m).grid[(*m).player.x][(*m).player.y].content = EMPTY;
+            (*m).grid[deltax + move.x][deltay + move.y].content = BOX;
         }
-        else if (result2 == 2) {
-			boxmoved = 1;
-        	(*m).grid[(*m).player.x][(*m).player.y].content = EMPTY;
-            (*m).player.x = deplacementJoueurEnLargeur;
-            (*m).player.y = deplacementJoueurEnLongueur;
-            (*m).grid[deplacementJoueurEnLargeur ][deplacementJoueurEnLongueur].content = PLAYER;
-            (*m).grid[deplacementJoueurEnLargeur + largeur][deplacementJoueurEnLongueur + longueur].content = BOX;
-            
-        }
-        else{
-            return 0;
-        }
-        
-
-        
-    }
-    else if (result ==2){
-			
+        else 
+        {
             boxmoved = 0;
             (*m).grid[(*m).player.x][(*m).player.y].content = EMPTY;
-            (*m).player.x = deplacementJoueurEnLargeur;
-            (*m).player.y = deplacementJoueurEnLongueur;
-            
-            (*m).grid[deplacementJoueurEnLargeur][deplacementJoueurEnLongueur].content = PLAYER;
             
         }
-    else{
+		(*m).player.x = deltax;
+        (*m).player.y = deltay;
+		(*m).grid[deltax][deltay].content = PLAYER;
+		if (s != NULL)
+			pushstack(s, move, boxmoved);
+        return 1;
+        
+    }
+    else
+    {
         return 0;
     }
     
     
     
-    pushstack(movement,(Pair){largeur,longueur},boxmoved);
+	
     
 
 }
+int canwemove(Map *m, Pair movepl, Pair movebox){
+    if ((*m).grid[movepl.x][movepl.y].type == WALL || ((*m).grid[movepl.x + movebox.x][movepl.y + movebox.y].type == WALL )&& ((*m).grid[movepl.x][movepl.y].content == BOX ) ){
+        return 0;
+    }
+    else if ((*m).grid[movepl.x][movepl.y].content == BOX || (*m).grid[movepl.x][movepl.y].content == EMPTY   ){
+        return 1;
+    }
+   
+	
+}
 
 
-int which_move(Map *m,Stack **movement){
+int whichmove(Map *m,Stack **s){
     char mov;
     mov = io();
     switch (mov) {
-        case 'U': move (m,0,movement,-1); break;
-        case 'D': move (m,0,movement,1); break;
-        case 'L': move (m,-1,movement,0); break;
-        case 'R': move (m,1,movement,0); break;
+        case 'U': move (m,(Pair){0,-1},s); break;
+        case 'D': move (m,(Pair){0,1},s); break;
+        case 'L': move (m,(Pair){-1,0},s); break;
+        case 'R': move (m,(Pair){1,0},s); break;
         case 27: return 27;
 		case 'z': return 'z';
 		case 'r': return 'r';
@@ -495,7 +501,6 @@ int which_move(Map *m,Stack **movement){
     }
 
 }
-
 
 
 Stack * pushstack(Stack **s, Pair move, int boxmoved)
@@ -534,34 +539,21 @@ int popstack(Stack **s, Stack *pop)
 
 
 
-int canwemove(Map *m,int x , int y){
-    if ((*m).grid[x][y].type == WALL ){
-        return 0;
-    }
-    else if ((*m).grid[x][y].content == BOX  ){
-        return 1;
-    }
-    else if ((*m).grid[x][y].content == EMPTY)
-    {   
-        return 2;
-        
-    }
-	
-}
 
-int undomove(Stack **movement, Map *m){
+
+int undomove(Stack **s, Map *m){
 
 	Stack *p;
 
-	if ( *movement == NULL){
+	if ( *s == NULL){
 		printf("Aucun mouvement enregistré !") ;
 		return EXIT_FAILURE;
 	}
 	else {
 	
 		
-		p = *movement;
-		*movement = p->prev;
+		p = *s;
+		*s = p->prev;
 		
 		(*m).grid[(*m).player.x][(*m).player.y].content = EMPTY;
 	
@@ -593,7 +585,7 @@ void listeAffiche(Stack * ptr){
 	printf("\n") ;
 	}
 
-int verifie_gagne(Map *m){
+int verifiegagne(Map *m){
 	int i,j;
 	for (j = 0; j < m->size.y; j++) {
 		for (i = 0; i < m->size.x; i++) {
@@ -607,7 +599,7 @@ int verifie_gagne(Map *m){
 
 
 
-Map* load_map(Map *m, int level, char *file){
+Map* loadingmap(Map *m, int level, char *file){
 	m = loadmap(file, level);
 	if (m == NULL) {
 		error("could not load map");
@@ -616,17 +608,18 @@ Map* load_map(Map *m, int level, char *file){
 
 }
 
-void display_temp(Map *m, int coup){
+void displaytemp(Map *m, int stroke){
 	int i, j;
 	printf("\e[1;1H\e[2J");
-	printf("\nYou made %d strokes\n",coup);
+	printf("\nYou made %d strokes\n",stroke);
 	for (j = 0; j < m->size.y; j++) {
 		for (i = 0; i < m->size.x; i++) {
-			if (m->grid[i][j].content != EMPTY)
+			if (m->grid[i][j].type == TARGET && m->grid[i][j].content == BOX)
+				putchar('*');
+			else if (m->grid[i][j].content != EMPTY)
 				putchar(m->grid[i][j].content);
-			else{
+			else
 				putchar(m->grid[i][j].type);
-			}
 		}
 		putchar('\n');
 	}
@@ -641,12 +634,12 @@ Map* initialisation(Map *m){
 	int choose = io();
 	if (choose == 'a'){
 		char *file = "levels.save";
-		m = load_map(m,0,file);
+		m = loadingmap(m,0,file);
 	}
 	else if (choose == 'b'){
 		char *file = "levels.lvl";
-		m = load_map(m,1,file);
-		display_temp(m,0);
+		m = loadingmap(m,1,file);
+		displaytemp(m,0);
 	}
 	else{
 		printf("\nWrong choice\n");
@@ -656,19 +649,19 @@ Map* initialisation(Map *m){
 
 }
 
-int main(int argc, char const *argv[])
+
+int main(int argc, char *argv[])
 {
-    
-	
+
 	Map *m;
 	Stack *s;
 	int choix ;
-	int coup = 0;
+	int stroke = 0;
 	int level = 1;
 
 	if (!configureTerminal())
 	{
-		error("Impossible de configurer le terminal");
+		error("Configuration of the terminal is impossible");
 		return 0;
 	}
 	
@@ -677,12 +670,12 @@ int main(int argc, char const *argv[])
 	m = initialisation(m);
 
 	
-    while ((choix = which_move(m,&s)) != 27){
-		if (!verifie_gagne(m)){
+    while ((choix = whichmove(m,&s)) != 27){
+		if (!verifiegagne(m)){
 		
-			coup ++;
+			stroke ++;
 			if (choix == 'z') {
-				coup -=2;
+				stroke -=2;
 				undomove(&s,m);
 			}
 			else if (choix == 's')
@@ -691,23 +684,22 @@ int main(int argc, char const *argv[])
 				return 0;
 			}
 			else if (choix == 'r'){
-				coup = 0;
+				stroke = 0;
 				char *file = "levels.lvl";
-				m = load_map(m, level,file);
+				m = loadingmap(m, level,file);
 			}
-			display_temp(m,coup);
+			displaytemp(m,stroke);
 		
 		}
 		else{// TODO: make display function and save solution
-			display_temp(m,coup);
-			
+			displaytemp(m,stroke);
 			
 			level ++;
-			int tmp = coup +1 ;
-			coup = 0;
+			int tmp = stroke +1 ;
+			stroke = 0;
 			char *file = "levels.lvl";
-			m = load_map(m,level,file);
-			display_temp(m,coup);
+			m = loadingmap(m,level,file);
+			displaytemp(m,stroke);
 			printf("\nYou win level %d in %d strokes , you are level %d\n",level,tmp, level--);
 
 		}
@@ -716,10 +708,6 @@ int main(int argc, char const *argv[])
 
 	return 0;
     
-    
-    
-	
-
 }
 
 	

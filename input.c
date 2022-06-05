@@ -4,8 +4,6 @@
 int io(void) {
 
   int key;
-      
-    
 
   char r[MAXSIZE];
 	int c;  
@@ -13,7 +11,7 @@ int io(void) {
 	if ((c=read(0,r,3)) == - 1 ) return false; 
 
 	switch (r[0]) {
-		case 27 :  
+	case 27 :  
       if ((c==3) && (r[1]==91)){
         key = (r[2]-64);
         switch (key) {
@@ -25,17 +23,17 @@ int io(void) {
         default:  return 'P'; break;
         }
       }  
-      else 
-        return false; 
+      else if (c == 1 && r[0] == 27)
+        return 27; 
+	  else
+	  	return false;
       break; 
-		default: return r[0]; break; 
+	default: return r[0]; break; 
 	}
 				
           
       
 }
-   
- 
 
 
 

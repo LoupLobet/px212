@@ -6,20 +6,7 @@
 
 
 
-int verifie_gagne(Map *m){
-	int i,j;
-	for (j = 0; j < m->size.y; j++) {
-		for (i = 0; i < m->size.x; i++) {
-			if (m->grid[i][j].type == TARGET && m->grid[i][j].content != BOX){
-				return 0;
-			}
-		}
-	}
-	return 1;
-}
-
-
-int verifie_gagne(Map *m){
+int verifiegagne(Map *m){
 	int i,j;
 	for (j = 0; j < m->size.y; j++) {
 		for (i = 0; i < m->size.x; i++) {
@@ -33,7 +20,7 @@ int verifie_gagne(Map *m){
 
 
 
-Map* load_map(Map *m, int level, char *file){
+Map* loadingmap(Map *m, int level, char *file){
 	m = loadmap(file, level);
 	if (m == NULL) {
 		error("could not load map");
@@ -42,43 +29,21 @@ Map* load_map(Map *m, int level, char *file){
 
 }
 
-<<<<<<< HEAD
-	s = NULL;
-
-=======
-void display_temp(Map *m, int coup){
+void displaytemp(Map *m, int stroke){
 	int i, j;
 	printf("\e[1;1H\e[2J");
 	printf("\nYou made %d strokes\n",coup);
->>>>>>> 8456c9294d5f8357fe0c5381b81d69a9aa964eb2
 	for (j = 0; j < m->size.y; j++) {
 		for (i = 0; i < m->size.x; i++) {
-			if (m->grid[i][j].content != EMPTY)
-				putchar(m->grid[i][j].content);
-			else{
-				putchar(m->grid[i][j].type);
-			}
-		}
-		putchar('\n');
-	}
-<<<<<<< HEAD
-
-	printf("%d\n", domove(m, (Pair) { 0, 1 }, &s));
-
-	for (j = 0; j < m->size.y; j++) {
-		for (i = 0; i < m->size.x; i++) {
-			if (m->grid[i][j].content != EMPTY)
+			if (m->grid[i][j].type == TARGET && m->grid[i][j].content == BOX)
+				putchar('*');
+			else if (m->grid[i][j].content != EMPTY)
 				putchar(m->grid[i][j].content);
 			else
 				putchar(m->grid[i][j].type);
 		}
 		putchar('\n');
 	}
-
-	Stack pop;
-	while (!popstack(&s, &pop))
-		printf("{ %d, %d }, %d\n", pop.move.x, pop.move.y, pop.boxmoved);
-=======
 	printf("\n - Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
 	
 }
@@ -90,12 +55,12 @@ Map* initialisation(Map *m){
 	int choose = io();
 	if (choose == 'a'){
 		char *file = "levels.save";
-		m = load_map(m,0,file);
+		m = loadingmap(m,0,file);
 	}
 	else if (choose == 'b'){
 		char *file = "levels.lvl";
-		m = load_map(m,1,file);
-		display_temp(m,0);
+		m = loadingmap(m,1,file);
+		displaytemp(m,0);
 	}
 	else{
 		printf("\nWrong choice\n");
@@ -106,19 +71,18 @@ Map* initialisation(Map *m){
 }
 
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 
 	Map *m;
 	Stack *s;
 	int choix ;
-	int coup = 0;
+	int stroke = 0;
 	int level = 1;
 
 	if (!configureTerminal())
 	{
-		error("Impossible de configurer le terminal");
+		error("Configuration of the terminal is impossible");
 		return 0;
 	}
 	
@@ -127,12 +91,12 @@ main(int argc, char *argv[])
 	m = initialisation(m);
 
 	
-    while ((choix = which_move(m,&s)) != 27){
-		if (!verifie_gagne(m)){
+    while ((choix = whichmove(m,&s)) != 27){
+		if (!verifiegagne(m)){
 		
-			coup ++;
+			stroke ++;
 			if (choix == 'z') {
-				coup -=2;
+				stroke -=2;
 				undomove(&s,m);
 			}
 			else if (choix == 's')
@@ -141,34 +105,28 @@ main(int argc, char *argv[])
 				return 0;
 			}
 			else if (choix == 'r'){
-				coup = 0;
+				stroke = 0;
 				char *file = "levels.lvl";
-				m = load_map(m, level,file);
+				m = loadingmap(m, level,file);
 			}
-			display_temp(m,coup);
+			displaytemp(m,stroke);
 		
 		}
 		else{// TODO: make display function and save solution
-			display_temp(m,coup);
-			
+			displaytemp(m,stroke);
 			
 			level ++;
-			int tmp = coup +1 ;
-			coup = 0;
+			int tmp = stroke +1 ;
+			stroke = 0;
 			char *file = "levels.lvl";
-			m = load_map(m,level,file);
-			display_temp(m,coup);
+			m = loadingmap(m,level,file);
+			displaytemp(m,stroke);
 			printf("\nYou win level %d in %d strokes , you are level %d\n",level,tmp, level--);
 
 		}
 	}
 		
->>>>>>> 8456c9294d5f8357fe0c5381b81d69a9aa964eb2
 
 	return 0;
     
 }
-<<<<<<< HEAD
-
-=======
->>>>>>> 8456c9294d5f8357fe0c5381b81d69a9aa964eb2
