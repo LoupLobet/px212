@@ -71,11 +71,14 @@ Map* initialisation(Map *m){
 }
 
 
+
+
 int main(int argc, char *argv[])
 {
 
 	Map *m;
 	Stack *s;
+	Stack *p;
 	int choix ;
 	int stroke = 0;
 	int level = 1;
@@ -110,6 +113,7 @@ int main(int argc, char *argv[])
 				m = loadingmap(m, level,file);
 			}
 			displaytemp(m,stroke);
+			
 		
 		}
 		else{// TODO: make display function and save solution

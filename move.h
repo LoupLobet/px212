@@ -9,3 +9,4 @@ Stack * pushstack(Stack **s, Pair move, int boxmoved);
 int popstack(Stack **s, Stack *pop);
 int undomove(Stack **movement, Map *m);
 int canwemove(Map *m, Pair movepl, Pair movebox);
+int loadfromstack(Stack *input,Map *m,Stack *output, int stroke);

@@ -649,15 +649,47 @@ Map* initialisation(Map *m){
 
 }
 
+int loadfromstack(Stack *input,Map *m,Stack *output, int stroke){
+	Stack pop;
+
+
+	if ( input == NULL){
+		printf("Aucun mouvement enregistré !") ;
+		return 0;
+	}
+	else{
+		
+		while (!popstack(&input, &pop)){
+			if (pop.boxmoved)
+			{
+				error("Ce chemin contient une caisse à déplacer");
+				return EXIT_FAILURE;
+			}
+			
+			displaytemp(m,stroke);
+			move(m,pop.move,&output);
+			stroke++;
+			sleep(1);
+
+		}
+		
+		
+		return stroke;
+	}
+
+}
+
 
 int main(int argc, char *argv[])
 {
 
 	Map *m;
 	Stack *s;
+	Stack *p;
 	int choix ;
 	int stroke = 0;
 	int level = 1;
+	int i = 0;
 
 	if (!configureTerminal())
 	{
@@ -688,7 +720,12 @@ int main(int argc, char *argv[])
 				char *file = "levels.lvl";
 				m = loadingmap(m, level,file);
 			}
+			else if (i == 3){
+				stroke = loadfromstack(s,m,p,stroke);
+			}
 			displaytemp(m,stroke);
+			i++;
+			
 		
 		}
 		else{// TODO: make display function and save solution
@@ -709,5 +746,4 @@ int main(int argc, char *argv[])
 	return 0;
     
 }
-
 	

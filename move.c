@@ -129,3 +129,32 @@ int undomove(Stack **s, Map *m){
 		}
 		}
 	}
+
+
+int loadfromstack(Stack *input,Map *m,Stack *output, int stroke){
+	Stack pop;
+
+	if ( input == NULL){
+		printf("Aucun mouvement enregistré !") ;
+		return 0;
+	}
+	else{
+		
+		while (!popstack(&input, &pop)){
+			if (pop.boxmoved)
+			{
+				error("Ce chemin contient une caisse à déplacer");
+				return EXIT_FAILURE;
+			}
+			
+			displaytemp(m,stroke);
+			move(m,pop.move,&output);
+			stroke++;
+			sleep(1);
+
+		}
+		
+		return stroke;
+	}
+
+}
