@@ -5,7 +5,16 @@
 #include "display.h"
 #include "util.h"
 
+#define clear() printf("\033[H\033[J")
+#define gotoxy(x,y) printf("\033[%d;%dH", (y), (x))
+#define savecurspos() printf("\033[s")
+#define loadcurspos() printf("\033[u")
+
+static Pair cursorpos;
+
 static char spacetochar(Space *s);
+int digitnb ( int nb );
+static void displaycursor();
 
 void display(Map* map, int mvnb)
 {
@@ -23,9 +32,7 @@ void display(Map* map, int mvnb)
 		for (int x = 0; x < maxx; x++) {
 			ligne[x] = spacetochar(&map->grid[x][y]);
 		}
-		//display player and cursor
-		if (map->cursor.y == y)
-			ligne[map->cursor.x] = 'O';
+		//display player
 		if (map->player.y == y)
 			ligne[map->player.x] = '@'; //TODO faire un choix entre map->player et map->grid[][].content
 		printf("%s\n", ligne);
@@ -39,6 +46,18 @@ void display(Map* map, int mvnb)
 		printf("\nMap n°%u \n", map->id);
 	// print movement nb
 	printf("\nYou made %d strokes\n",mvnb);
+}
+
+
+static void displaycursor(){
+	int line0 = 3, column0 = 1;
+	int x = cursorpos.x, y = cursorpos.y;
+	if(x != -1 && y != -1){
+		savecurspos();
+		gotoxy(column0+x,line0+y);
+		fflush(stdout);
+		loadcurspos();
+	}
 }
 
 
@@ -56,19 +75,45 @@ static char spacetochar(Space *s){
 
 
 void displaystr(char *s) {
-	printf("%s\n", s);
+	printf("\n%s\n", s);
+	displaycursor();
 }
 
 
 void displaywarning(char *s) {
 	int l = strlen(s);
-	char *border = malloc(l+1);
-	memset(border, '=', l);
+	char *border = emalloc(l);
+	memset(border, '=', l-1);
 	border[l] = 0;
 
-	printf("%s\n", border);
-	printf("%s\n", s);
-	printf("%s\n", border);
-
+	printf("\n/%s\\\n", border);
+	printf(" %s", s);
+	printf("\\%s/\n", border);
 	free(border);
+	displaycursor();
+}
+
+
+void setcursor(Map *map, Pair pos){
+	int px = pos.x, py = pos.y;
+	Pair ms = map->size;
+	if(px == -1 && py == -1) cursorpos = pos;
+	else cursorpos = (Pair){MIN(MAX(pos.x, 0), ms.x), MIN(MAX(pos.y, 0), ms.y)};
+	displaycursor();
+}
+
+
+void movecursor(Map *map, Pair mvt){
+	setcursor(map, (Pair){cursorpos.x + mvt.x, cursorpos.y + mvt.y});
+}
+
+
+Pair getcursor() {return cursorpos;}
+
+
+int digitnb ( int nb )
+{
+	int i;
+	for (i=1; nb >= 10; nb /= 10, i++);
+	return i;
 }
