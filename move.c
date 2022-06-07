@@ -1,19 +1,19 @@
-
-
+#include "move.h"
 
 int move (Map *m, Pair move,Stack **s){
 
     
     int deltax = (*m).player.x + move.x;
-    int deltay = (*m).player.y + move.y;
+    int movey = (*m).player.y + move.y;
     int boxmoved;
-    if (canwemove(m,(Pair){deltax, deltay},move))
+    if (canwemove(m,move))
     {
         
-        if ((*m).grid[deltax][deltay].content == BOX)
+        if ((*m).grid[deltax][movey].content == BOX)
         {
+			boxmoved = 1;
             (*m).grid[(*m).player.x][(*m).player.y].content = EMPTY;
-            (*m).grid[deltax + move.x][deltay + move.y].content = BOX;
+            (*m).grid[deltax + move.x][movey + move.y].content = BOX;
         }
         else 
         {
@@ -22,8 +22,8 @@ int move (Map *m, Pair move,Stack **s){
             
         }
 		(*m).player.x = deltax;
-        (*m).player.y = deltay;
-		(*m).grid[deltax][deltay].content = PLAYER;
+        (*m).player.y = movey;
+		(*m).grid[deltax][movey].content = PLAYER;
 		if (s != NULL)
 			pushstack(s, move, boxmoved);
         return 1;
@@ -35,11 +35,12 @@ int move (Map *m, Pair move,Stack **s){
     }
 
 }
-int canwemove(Map *m, Pair movepl, Pair movebox){
-    if ((*m).grid[movepl.x][movepl.y].type == WALL || ((*m).grid[movepl.x + movebox.x][movepl.y + movebox.y].type == WALL )&& ((*m).grid[movepl.x][movepl.y].content == BOX ) ){
+int canwemove(Map *m, Pair move){
+
+    if ((*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].type == WALL || ((*m).grid[ (*m).player.x + 2*move.x ][(*m).player.y + 2*move.y ].type == WALL )&& ((*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].content == BOX ) || (((*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].content == BOX ) && (((*m).grid[ (*m).player.x + 2*move.x][(*m).player.y +2*move.y].content == BOX ))) ){
         return 0;
     }
-    else if ((*m).grid[movepl.x][movepl.y].content == BOX || (*m).grid[movepl.x][movepl.y].content == EMPTY   ){
+    else if ((*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].content == BOX || (*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].content == EMPTY   ){
         return 1;
     }
    
@@ -47,22 +48,8 @@ int canwemove(Map *m, Pair movepl, Pair movebox){
 }
 
 
-int whichmove(Map *m,Stack **s){
-    char mov;
-    mov = io();
-    switch (mov) {
-        case 'U': move (m,(Pair){0,-1},s); break;
-        case 'D': move (m,(Pair){0,1},s); break;
-        case 'L': move (m,(Pair){-1,0},s); break;
-        case 'R': move (m,(Pair){1,0},s); break;
-        case 27: return 27;
-		case 'z': return 'z';
-		case 'r': return 'r';
-		case 's': return 's';
-        default: break;
-    }
 
-}
+
 
 
 Stack * pushstack(Stack **s, Pair move, int boxmoved)
@@ -103,6 +90,7 @@ int popstack(Stack **s, Stack *pop)
 
 
 
+
 int undomove(Stack **s, Map *m){
 
 	Stack *p;
@@ -125,7 +113,7 @@ int undomove(Stack **s, Map *m){
 		if (p->boxmoved == 1) {
 			(*m).grid[(*m).player.x + p->move.x][(*m).player.y + p->move.y].content = BOX;
 			(*m).grid[(*m).player.x + 2*(p->move.x)][(*m).player.y + 2*(p->move.y)].content = EMPTY;
-			(*m).grid[(*m).player.x + 2*(p->move.x)][(*m).player.y + 2*(p->move.y)].content = FLOOR;
+			
 		}
 		}
 	}
@@ -134,25 +122,24 @@ int undomove(Stack **s, Map *m){
 int loadfromstack(Stack *input,Map *m,Stack *output, int stroke){
 	Stack pop;
 
+
 	if ( input == NULL){
-		printf("Aucun mouvement enregistré !") ;
+		displaywarning("No move to undo");
+		
 		return 0;
 	}
 	else{
 		
 		while (!popstack(&input, &pop)){
-			if (pop.boxmoved)
-			{
-				error("Ce chemin contient une caisse à déplacer");
-				return EXIT_FAILURE;
-			}
 			
-			displaytemp(m,stroke);
+			
+			displaymap(m,stroke);
 			move(m,pop.move,&output);
 			stroke++;
 			sleep(1);
 
 		}
+	
 		
 		return stroke;
 	}

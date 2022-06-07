@@ -11,8 +11,118 @@
 #include <unistd.h>
 #include <termios.h>
 #include <stdbool.h>
+#include "display.h"
 
 
+
+
+#define clear() printf("\033[H\033[J")
+#define gotoxy(x,y) printf("\033[%d;%dH", (y), (x))
+#define savecurspos() printf("\033[s")
+#define loadcurspos() printf("\033[u")
+
+static Pair cursorpos;
+
+static char spacetochar(Space *s);
+int digitnb ( int nb );
+static void displaycursor();
+
+
+void display(Map* map, int mvnb)
+{
+	// clear
+	printf("\e[1;1H\e[2J");
+	// print comment if exist
+	if (map->comment && *map->comment)
+		printf("--> %s <--\n\n", map->comment);
+	else
+		printf("\n\n");
+	// display map
+	int maxx = map->size.x, maxy = map->size.y;
+	char* ligne = emalloc(sizeof(char)*maxx+1);
+	for (int y = 0; y < maxy; y++) {
+		for (int x = 0; x < maxx; x++) {
+			ligne[x] = spacetochar(&map->grid[x][y]);
+		}
+		//display player
+		if (map->player.y == y)
+			ligne[map->player.x] = '@';
+		printf("%s\n", ligne);
+		for (int i = 0; i < maxx+1; i++) ligne[i] = 0;
+	}
+	free(ligne);
+	// print author if exist and map id
+	if (map->author && *map->author)
+		printf("\nMap n°%u from %s\n", map->id, map->author);
+	else
+		printf("\nMap n°%u \n", map->id);
+	// print movement nb
+	printf("\nYou made %d strokes\n",mvnb);
+}
+
+
+void displaystr(char *s) {
+	printf("\n%s\n", s);
+	displaycursor();
+}
+
+
+void displaywarning(char *s) {
+	int l = strlen(s);
+	char *border = emalloc(l);
+	memset(border, '=', l-1);
+	border[l] = 0;
+
+	printf("\n/%s\\\n", border);
+	printf(" %s", s);
+	printf("\\%s/\n", border);
+	free(border);
+	displaycursor();
+}
+
+
+/// --- CURSOR --- \\\
+
+static void displaycursor(){
+	int line0 = 3, column0 = 1;
+	int x = cursorpos.x, y = cursorpos.y;
+	if(x != -1 && y != -1){
+		savecurspos();
+		gotoxy(column0+x,line0+y);
+		fflush(stdout);
+		loadcurspos();
+	}
+}
+
+
+static char spacetochar(Space *s){
+	// cas sol (défault)
+	char c = ' ';
+	//autres cas
+	if (s->type == TARGET && s->content == BOX) c = '*';
+	else if (s->content == BOX) c = '$';
+	else if (s->type == TARGET) c = '.';
+	else if (s->type == WALL) c = '#';
+
+	return c;
+}
+
+
+void setcursor(Map *map, Pair pos){
+	int px = pos.x, py = pos.y;
+	Pair ms = map->size;
+	if(px == -1 && py == -1) cursorpos = pos;
+	else cursorpos = (Pair){MIN(MAX(pos.x, 0), ms.x), MIN(MAX(pos.y, 0), ms.y)};
+	displaycursor();
+}
+
+
+void movecursor(Map *map, Pair mvt){
+	setcursor(map, (Pair){cursorpos.x + mvt.x, cursorpos.y + mvt.y});
+}
+
+
+Pair getcursor() {return cursorpos;}
 
 
 void
@@ -88,31 +198,28 @@ estrtol(const char *nptr, int base)
 	return out;
 }
 
-
-
-enum { AUTHOR, COMMENT, LEVEL, PASS };
-
-union value {
-	int i;
-	char *s;
-};
-
-struct comment {
-	int op;
-	union value val;
-};
-
-static void	 freecomment(struct comment *);
-static Pair	 getmapsize(FILE *fp);
-static int	 gotolevel(FILE *, int);
-static struct comment	*parsecomment(FILE *);
-
-static void
-freecomment(struct comment *cmt)
+FILE *
+efopen(const char *path, const char *mode)
 {
-	free(cmt->val.s);
-	free(cmt);
+	FILE *fp;
+
+	if ((fp = fopen(path, mode)) == NULL)
+		error("could not open file: %s", path);
+	return fp;
 }
+
+
+enum { PASS, AUTHOR, COMMENT, LEVEL, MAXLEVEL };
+
+struct tag {
+	int name;
+	char *val;
+};
+
+static void	 freetag(struct tag *);
+static Pair	 getmapsize(FILE *);
+static int	 gotolevel(FILE *, int);
+static struct tag	*readtag(FILE *);
 
 void
 freemap(Map *m)
@@ -127,6 +234,14 @@ freemap(Map *m)
 	if (m->author != NULL)
 		free(m->author);
 	free(m);
+}
+
+static void
+freetag(struct tag *t)
+{
+	if (t->val != NULL)
+		free(t->val);
+	free(t);
 }
 
 static Pair
@@ -158,15 +273,17 @@ static int
 gotolevel(FILE *fp, int n)
 {
 	int c;
-	struct comment *cmt;
+	struct tag *t;
 
 	rewind(fp);
 	while ((c = fgetc(fp)) != EOF) {
 		if (c == ';') {
-			if ((cmt = parsecomment(fp)) == NULL)
-				return 1;
-			if (cmt->op == LEVEL && cmt->val.i == n)
+			t = readtag(fp);
+			if (t->name == LEVEL && estrtol(t->val, 10) == n) {
+				freetag(t);
 				return 0;
+			}
+			freetag(t);
 		}
 	}
 	return 1;
@@ -178,7 +295,7 @@ loadmap(char *file, int n)
 	int c;
 	int i;
 	int x, y;
-	struct comment *cmt;
+	struct tag *t;
 	FILE *fp;
 	Map *m;
 
@@ -195,36 +312,40 @@ loadmap(char *file, int n)
 	m->comment = NULL;
 	m->author = NULL;
 	m->player = (Pair){ -1, -1 };
-
-	/* catch extra comments */
+	m->cursor = (Pair){ -1, -1 };
+	/* catch extra tags */
 	while ((c = fgetc(fp)) != EOF && c == ';') {
-		cmt = parsecomment(fp);
-		switch (cmt->op) {
+
+		t = readtag(fp);
+		switch (t->name) {
 		case AUTHOR:
-			m->author = estrdup(cmt->val.s);
+			m->author = estrdup(t->val);
 			break;
 		case COMMENT:
-			m->comment = estrdup(cmt->val.s);
+			m->comment = estrdup(t->val);
 			break;
 		case LEVEL:
 			/* empty grid, error */
 			warning("empty map: %d", n);
 			return NULL;
-		case PASS:
-			break;
 		}
-		freecomment(cmt);
+		freetag(t);
 	}
 	/*
-	 * avoid the first map space to be blown
-	 * by the "extra comment loop" condition
+	 * Avoid the first map space to be blown
+	 * by the "extra comment" loop condition.
 	 */
-	fseek(fp, -1, SEEK_CUR);
+	if (c != EOF)
+		fseek(fp, -1, SEEK_CUR);
 
-	/* fill the grid */
+	/* fill grid */
 	x = 0;
 	y = 0;
 	m->size = getmapsize(fp);
+	if (m->size.x == 0 && m->size.y == 0) {
+		warning("empty map: %d", n);
+		return NULL;
+	}
 	m->grid = emalloc(sizeof(Space) * m->size.x);
 	for (i = 0; i < m->size.x; i++) {
 		m->grid[i] = emalloc(sizeof(Space) * m->size.y);
@@ -243,127 +364,77 @@ loadmap(char *file, int n)
 			m->grid[x][y].type = c;
 			m->grid[x][y].content = EMPTY;
 			break;
-		case PLAYER:
+		case '*':
+			m->grid[x][y].type = TARGET;
+			m->grid[x][y].content = PLAYER;
 			m->player = (Pair){ x, y };
-			/* fallthrough */
+			break;
+		case PLAYER:
+			m->grid[x][y].type = FLOOR;
+			m->grid[x][y].content = PLAYER;
+			m->player = (Pair){ x, y };
+			break;
 		case BOX:
 			m->grid[x][y].type = FLOOR;
-			m->grid[x][y].content = c;
+			m->grid[x][y].content = BOX;
 			break;
 		default:
-			warning("unknown character %c, in map: %d", c, n);
+			warning("unknow character %c, in map: %d", c, n);
 			return NULL;
 		}
 		x++;
 	}
 	if (m->player.x == -1 && m->player.y == -1) {
-		warning("no player in map: %d");
+		warning("no player in map: %d", n);
 		return NULL;
 	}
 	fclose(fp);
 	return m;
 }
 
-static struct comment *
-parsecomment(FILE *fp)
+static struct tag *
+readtag(FILE *fp)
 {
 	int c;
 	int i;
-	int opsize, valsize;
-	char *op, *val;
-	struct comment *cmt;
+	int namesize, valsize;
+	char *name, *val;
+	struct tag *t;
 
-	cmt = emalloc(sizeof(struct comment));
-	cmt->op = PASS;
-	c = 0;
-	opsize = 16;
-	op = emalloc(opsize);
-	for (i = 0; (c = fgetc(fp)) && c != ' '; i++) {
-		if (c == EOF || c == '\n') {
-			return cmt;
+	t = emalloc(sizeof(struct tag));
+	namesize = 8;
+	name = emalloc(namesize);
+	for (i = 0; (c = fgetc(fp)) && c != EOF && c != ' ' && c != '\n'; i++) {
+		if (i > namesize - 2)
+			name = erealloc(name, namesize *= 2);
+		name[i] = c;
+	}
+	if (!strcmp(name, "AUTHOR"))
+		t->name = AUTHOR;
+	else if (!strcmp(name, "COMMENT"))
+		t->name = COMMENT;
+	else if (!strcmp(name, "LEVEL"))
+		t->name = LEVEL;
+	else if (!strcmp(name, "MAXLEVEL"))
+		t->name = MAXLEVEL;
+	else
+		t->name = PASS;
+	free(name);
+	t->val = NULL;
+	if (c == ' ') {
+		valsize = 8;
+		val = emalloc(valsize);
+		for (i = 0; (c = fgetc(fp)) && c != EOF && c != '\n'; i++) {
+			if (i > valsize - 2)
+				val = erealloc(val, valsize *= 2);
+			val[i] = c;
 		}
-		if (i > opsize - 2)
-			op = erealloc(op, opsize * 2);
-		op[i] = c;
+		t->val = emalloc(i);
+		strcpy(t->val, val);
+		free(val);
 	}
-	if (strlen(op) == 0)
-		return cmt;
-
-	c = 0;
-	valsize = 16;
-	val = emalloc(valsize);
-	for (i = 0; (c = fgetc(fp)) && c != '\n' && c != EOF; i++) {
-		if (i > valsize - 2)
-			val = erealloc(val, valsize * 2);
-		val[i] = c;
-	}
-
-	if (!strcmp(op, "AUTHOR")) {
-		cmt->op = AUTHOR;
-		cmt->val.s = emalloc(i);
-		strcpy(cmt->val.s, val);
-	} else if (!strcmp(op, "COMMENT")) {
-		cmt->op = COMMENT;
-		cmt->val.s = emalloc(i);
-		strcpy(cmt->val.s, val);
-	} else if (!strcmp(op, "LEVEL")) {
-		cmt->op = LEVEL;
-		cmt->val.i = (int)estrtol(val, 10);
-	} else {
-		cmt->op = PASS;
-	}
-	free(op);
-	free(val);
-
-	return cmt;
+	return t;
 }
-
-int
-savemap(Map *m, Stack *s, char *file)
-{
-	char bufpath[] = "/tmp/bufsokoban";
-	Stack pop;
-	long int offset;
-	int c;
-	int i;
-	FILE *fp;
-	FILE *buf;
-
-	if ((fp = fopen(file, "a+")) == NULL) {
-		warning("could not open file: %s", file);
-		return 1;
-	}
-	/* check if a move set is already saved in the file for this map */
-	if (gotolevel(fp, m->id)) {
-		/* simply append to end of file */
-		fseek(fp, 0, SEEK_END);
-		fprintf(fp, ";LEVEL %d\n", m->id);
-		while (!popstack(&s, &pop))
-			fprintf(fp, "%d,%d,%d,", pop.move.x, pop.move.y, pop.boxmoved);
-		fputc('\n', fp);
-	} else {
-		/* edit old move set */
-		if ((buf = fopen(bufpath, "w")) == NULL) {
-			warning("could not open file: %s", file);
-			return 1;
-		}
-		offset = ftell(fp);
-		fseek(fp, 0, SEEK_SET);
-		for (i = 0; (c = getc(fp)) != EOF && i < offset; i++)
-			fputc(c, buf);
-		while ((c = getc(fp)) != EOF && c != '\n');
-		while (!popstack(&s, &pop))
-			fprintf(buf, "%d,%d,%d,", pop.move.x, pop.move.y, pop.boxmoved);
-		fputc('\n', buf);
-		while ((c = getc(fp)) != EOF)
-			fputc(c, buf);
-		fclose(buf);
-		rename(bufpath, file);
-	}
-	fclose(fp);
-	return 0;
-}
-
 
 
 
@@ -438,15 +509,16 @@ int move (Map *m, Pair move,Stack **s){
 
     
     int deltax = (*m).player.x + move.x;
-    int deltay = (*m).player.y + move.y;
+    int movey = (*m).player.y + move.y;
     int boxmoved;
-    if (canwemove(m,(Pair){deltax, deltay},move))
+    if (canwemove(m,move))
     {
         
-        if ((*m).grid[deltax][deltay].content == BOX)
+        if ((*m).grid[deltax][movey].content == BOX)
         {
+			boxmoved = 1;
             (*m).grid[(*m).player.x][(*m).player.y].content = EMPTY;
-            (*m).grid[deltax + move.x][deltay + move.y].content = BOX;
+            (*m).grid[deltax + move.x][movey + move.y].content = BOX;
         }
         else 
         {
@@ -455,8 +527,8 @@ int move (Map *m, Pair move,Stack **s){
             
         }
 		(*m).player.x = deltax;
-        (*m).player.y = deltay;
-		(*m).grid[deltax][deltay].content = PLAYER;
+        (*m).player.y = movey;
+		(*m).grid[deltax][movey].content = PLAYER;
 		if (s != NULL)
 			pushstack(s, move, boxmoved);
         return 1;
@@ -466,40 +538,18 @@ int move (Map *m, Pair move,Stack **s){
     {
         return 0;
     }
-    
-    
-    
-	
-    
 
 }
-int canwemove(Map *m, Pair movepl, Pair movebox){
-    if ((*m).grid[movepl.x][movepl.y].type == WALL || ((*m).grid[movepl.x + movebox.x][movepl.y + movebox.y].type == WALL )&& ((*m).grid[movepl.x][movepl.y].content == BOX ) ){
+int canwemove(Map *m, Pair move){
+
+    if ((*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].type == WALL || ((*m).grid[ (*m).player.x + 2*move.x ][(*m).player.y + 2*move.y ].type == WALL )&& ((*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].content == BOX ) || (((*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].content == BOX ) && (((*m).grid[ (*m).player.x + 2*move.x][(*m).player.y +2*move.y].content == BOX ))) ){
         return 0;
     }
-    else if ((*m).grid[movepl.x][movepl.y].content == BOX || (*m).grid[movepl.x][movepl.y].content == EMPTY   ){
+    else if ((*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].content == BOX || (*m).grid[ (*m).player.x + move.x][(*m).player.y + move.y].content == EMPTY   ){
         return 1;
     }
    
 	
-}
-
-
-int whichmove(Map *m,Stack **s){
-    char mov;
-    mov = io();
-    switch (mov) {
-        case 'U': move (m,(Pair){0,-1},s); break;
-        case 'D': move (m,(Pair){0,1},s); break;
-        case 'L': move (m,(Pair){-1,0},s); break;
-        case 'R': move (m,(Pair){1,0},s); break;
-        case 27: return 27;
-		case 'z': return 'z';
-		case 'r': return 'r';
-		case 's': return 's';
-        default: break;
-    }
-
 }
 
 
@@ -563,7 +613,7 @@ int undomove(Stack **s, Map *m){
 		if (p->boxmoved == 1) {
 			(*m).grid[(*m).player.x + p->move.x][(*m).player.y + p->move.y].content = BOX;
 			(*m).grid[(*m).player.x + 2*(p->move.x)][(*m).player.y + 2*(p->move.y)].content = EMPTY;
-			(*m).grid[(*m).player.x + 2*(p->move.x)][(*m).player.y + 2*(p->move.y)].content = FLOOR;
+			
 		}
 		}
 	}
@@ -585,6 +635,38 @@ void listeAffiche(Stack * ptr){
 	printf("\n") ;
 	}
 
+
+
+
+
+int loadfromstack(Stack *input,Map *m,Stack *output, int stroke){
+	Stack pop;
+
+
+	if ( input == NULL){
+		displaywarning("No move to undo");
+		
+		return 0;
+	}
+	else{
+		
+		while (!popstack(&input, &pop)){
+			
+			
+			displaymap(m,stroke);
+			move(m,pop.move,&output);
+			stroke++;
+			sleep(1);
+
+		}
+	
+		
+		return stroke;
+	}
+
+}
+
+
 int verifiegagne(Map *m){
 	int i,j;
 	for (j = 0; j < m->size.y; j++) {
@@ -599,86 +681,99 @@ int verifiegagne(Map *m){
 
 
 
-Map* loadingmap(Map *m, int level, char *file){
-	m = loadmap(file, level);
-	if (m == NULL) {
-		error("could not load map");
-	}
-	return m;
+
+
+int nextlevel(Map *m, int level){
+	int stroke = 0;
+	char *file = "levels.lvl";
+	freemap(m);
+	level++;
+	m = loadingmap(m, level,file);
+	return stroke;
 
 }
 
-void displaytemp(Map *m, int stroke){
-	int i, j;
-	printf("\e[1;1H\e[2J");
-	printf("\nYou made %d strokes\n",stroke);
-	for (j = 0; j < m->size.y; j++) {
-		for (i = 0; i < m->size.x; i++) {
-			if (m->grid[i][j].type == TARGET && m->grid[i][j].content == BOX)
-				putchar('*');
-			else if (m->grid[i][j].content != EMPTY)
-				putchar(m->grid[i][j].content);
-			else
-				putchar(m->grid[i][j].type);
-		}
-		putchar('\n');
+int prevlevel(Map *m, int level){
+	if (level == 1){
+		printf("You are on the first level !\n");
+		return 0;
 	}
-	printf("\n - Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n");
+	
+	int stroke = 0;
+	char *file = "levels.lvl";
+	freemap(m);
+	level--;
+	m = loadingmap(m, level,file);
+	return stroke;
+}
+
+int changelevel(Map *m){
+	int stroke = 0;
+	int size = 0;
+	int n = 0;
+	int niveau[10] = {-1};
+	char temp;
+	while ((temp = io()) != 10)
+		{
+			niveau[n]=temp - '0';
+			n++;
+		}
+				
+	size = n;
+	int i =  0;
+	int level = 0;
+	for (i = 0; i < size; i++)
+    	level = 10 * level + niveau[i];
+	
+	char *file = "levels.lvl";
+	freemap(m);
+	m = loadingmap(m, level,file);
+	return stroke;
+
+}
+
+int restart(Map *m,int level){
+	int stroke = 0;
+	char *file = "levels.lvl";
+	freemap(m);
+	m = loadingmap(m, level,file);
+	return stroke;
+}
+
+int saveplan(Map *m, Stack *s){
+	//savemap(m, s, "levels.save");
 	
 }
 
-Map* initialisation(Map *m){
-	printf("\n=======Game of Sokoban===========\n");
-	printf("\nPress 'a' to load an old save\n");
-	printf("\nPress 'b' to load a new game\n\n\n");
-	int choose = io();
-	if (choose == 'a'){
-		char *file = "levels.save";
-		m = loadingmap(m,0,file);
-	}
-	else if (choose == 'b'){
-		char *file = "levels.lvl";
-		m = loadingmap(m,1,file);
-		displaytemp(m,0);
-	}
-	else{
-		printf("\nWrong choice\n");
-		exit(EXIT_FAILURE);
-	}
-	return m;
-
-}
-
-int loadfromstack(Stack *input,Map *m,Stack *output, int stroke){
-	Stack pop;
-
-
-	if ( input == NULL){
-		printf("Aucun mouvement enregistré !") ;
-		return 0;
-	}
-	else{
-		
-		while (!popstack(&input, &pop)){
-			if (pop.boxmoved)
-			{
-				error("Ce chemin contient une caisse à déplacer");
-				return EXIT_FAILURE;
-			}
-			
-			displaytemp(m,stroke);
-			move(m,pop.move,&output);
-			stroke++;
-			sleep(1);
-
+int undomovement(Map *m,Stack *s, int stroke){
+		if (stroke == 0)
+		{
+			printf("You can't undo anymore !\n");
+			return 0;
 		}
+		stroke --;
 		
 		
+		undomove(&s,m);
 		return stroke;
-	}
-
 }
 
+void cursormove(Map *m){
+	char mov;
+	setcursor(m,(Pair){m->player.x,m->player.y});
+	displaycursor();
+	while ((mov = io()) != 27){
+	
+			switch (mov) {
+				case 'U': movecursor(m, (Pair){0,-1}); break;
+				case 'D': movecursor(m, (Pair){0,1}); break;
+				case 'L': movecursor(m, (Pair){-1,0}); break;
+				case 'R': movecursor(m, (Pair){1,0}); break;
+				default:displaywarning("Invalid move"); break;
+			}
+			displaycursor();
+	}
+}
 
 int main(int argc, char *argv[])
 {
@@ -689,61 +784,112 @@ int main(int argc, char *argv[])
 	int choix ;
 	int stroke = 0;
 	int level = 1;
+	int tmp;
+	char temp;
+	char *file;
 	int i = 0;
+	char mystr[30];
+	char soluce[80];
+	char mov;
+
+
+
 
 	if (!configureTerminal())
 	{
+		displaywarning("Could not configure terminal");
 		error("Configuration of the terminal is impossible");
 		return 0;
 	}
 	
 	
-
-	m = initialisation(m);
+	if (argc == 3)
+	{
+		
+		m = initialisation(m,argv[1],atoi(argv[2]));
+	}
+	else if (argc == 2)
+	{
+		m = initialisation(m,argv[1],1);
+	}
+	else if (argc == 1)
+	{
+		m = initialisation(m,"levels.lvl",1);
+	}
+	else{
+		displaywarning("Wrong number of arguments");
+		error("Problem of argument : Arguments must be ./prog file NbLevel");
+		return EXIT_FAILURE;
+	}
 
 	
-    while ((choix = whichmove(m,&s)) != 27){
-		if (!verifiegagne(m)){
-		
-			stroke ++;
-			if (choix == 'z') {
-				stroke -=2;
-				undomove(&s,m);
-			}
-			else if (choix == 's')
-			{
-				savemap(m, s, "levels.save");
-				return 0;
-			}
-			else if (choix == 'r'){
-				stroke = 0;
-				char *file = "levels.lvl";
-				m = loadingmap(m, level,file);
-			}
-			else if (i == 3){
-				stroke = loadfromstack(s,m,p,stroke);
-			}
-			displaytemp(m,stroke);
-			i++;
+    while ((mov = io()) != 27){
+	
+			switch (mov) {
+				case 'U': move (m,(Pair){0,-1},&s); stroke++; break;
+				case 'D': move (m,(Pair){0,1},&s);  stroke++; break;
+				case 'L': move (m,(Pair){-1,0},&s); stroke++;break;
+				case 'R': move (m,(Pair){1,0},&s);  stroke++;break;
+				case 'z': stroke = undomovement(m,s,stroke);break;
+				case 'r': stroke = restart(m,level);break;
+				case 's': saveplan(m,s); return 0;
+				case 'l': stroke = changelevel(m);break;
+				case 'p': prevlevel(m,level);level--; break;
+				case 'n': stroke = nextlevel(m,level);level++; break;
+				case 'c': cursormove(m);continue;break;
+				default: displaywarning("Wrong input"); error ("Vous n'avez pas entrez la bonne touche") ; return 0; break;
 			
+			
+			
+
+//			for (i = 0; i < ncommands; i++) {
+//				if (commands[i] = choix)
+//					(*commands[i].func)(m, s, Args);
+//			}
 		
 		}
-		else{// TODO: make display function and save solution
-			displaytemp(m,stroke);
+	
+		
+		
+		
+		
+			displaymap(m,stroke);
 			
-			level ++;
-			int tmp = stroke +1 ;
+			if (!verifiegagne(m))
+			{
+				continue;
+			}
+			else
+			
+			tmp = stroke +1 ;
 			stroke = 0;
-			char *file = "levels.lvl";
+			file = "levels.lvl";
+			sprintf(mystr, "%d", level);  // convert level to string
+			strcpy(soluce, "solucelevel");
+			strcat(soluce, mystr);
+			strcat(soluce, ".save");
+			//savemap(m, s, soluce);
+			level ++;
+			freemap(m);
 			m = loadingmap(m,level,file);
-			displaytemp(m,stroke);
+			displaymap(m,stroke);
 			printf("\nYou win level %d in %d strokes , you are level %d\n",level,tmp, level--);
 
-		}
-	}
-		
 
-	return 0;
-    
+		}
+		return 0;
 }
 	
+	
+		
+
+	
+    
+
+	
+
+ //void (*pf)displaymap(Map,int)
+ // We choose at the beginning to load a save or show a solution
+ 
+
+
