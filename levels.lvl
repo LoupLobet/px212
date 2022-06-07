@@ -1253,6 +1253,9 @@ $            1       f       0    100     0    2  1000 heavy box
   #               #
   #  ###########  #
   ####         ####
+;LEVEL 101
+;COMMENT niveau vide
+######@############
 ;LEVEL 87
 ;COMMENT ... and two more for level 22.
 ;AUTHOR Michael Bischoff (mbi@flawless.ts.rz.tu-bs.de)
@@ -1274,6 +1277,7 @@ $            1       f       0    100     0    2  1000 heavy box
 ###################
 ;LEVEL 88
 ;COMMENT One more for 35.
+;TEST
 ;AUTHOR Michael Bischoff (mbi@flawless.ts.rz.tu-bs.de)
 ############ ######
 #   #    # ###....#
@@ -1291,3 +1295,5 @@ $            1       f       0    100     0    2  1000 heavy box
 ## ## ### $  $   #
  #    # #    #####
  ###### ######
+;LEVEL 99
+
