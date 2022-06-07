@@ -6,31 +6,18 @@
 #include "loader.h"
 #include "util.h"
 #include "sokoban.h"
-#include "move.h"
 
-enum { AUTHOR, COMMENT, LEVEL, PASS };
+enum { PASS, AUTHOR, COMMENT, LEVEL, MAXLEVEL };
 
-union value {
-	int i;
-	char *s;
+struct tag {
+	int name;
+	char *val;
 };
 
-struct comment {
-	int op;
-	union value val;
-};
-
-static void	 freecomment(struct comment *);
-static Pair	 getmapsize(FILE *fp);
+static void	 freetag(struct tag *);
+static Pair	 getmapsize(FILE *);
 static int	 gotolevel(FILE *, int);
-static struct comment	*parsecomment(FILE *);
-
-static void
-freecomment(struct comment *cmt)
-{
-	free(cmt->val.s);
-	free(cmt);
-}
+static struct tag	*readtag(FILE *);
 
 void
 freemap(Map *m)
@@ -45,6 +32,14 @@ freemap(Map *m)
 	if (m->author != NULL)
 		free(m->author);
 	free(m);
+}
+
+static void
+freetag(struct tag *t)
+{
+	if (t->val != NULL)
+		free(t->val);
+	free(t);
 }
 
 static Pair
@@ -76,15 +71,17 @@ static int
 gotolevel(FILE *fp, int n)
 {
 	int c;
-	struct comment *cmt;
+	struct tag *t;
 
 	rewind(fp);
 	while ((c = fgetc(fp)) != EOF) {
 		if (c == ';') {
-			if ((cmt = parsecomment(fp)) == NULL)
-				return 1;
-			if (cmt->op == LEVEL && cmt->val.i == n)
+			t = readtag(fp);
+			if (t->name == LEVEL && estrtol(t->val, 10) == n) {
+				freetag(t);
 				return 0;
+			}
+			freetag(t);
 		}
 	}
 	return 1;
@@ -96,7 +93,7 @@ loadmap(char *file, int n)
 	int c;
 	int i;
 	int x, y;
-	struct comment *cmt;
+	struct tag *t;
 	FILE *fp;
 	Map *m;
 
@@ -113,36 +110,40 @@ loadmap(char *file, int n)
 	m->comment = NULL;
 	m->author = NULL;
 	m->player = (Pair){ -1, -1 };
-
-	/* catch extra comments */
+	m->cursor = (Pair){ -1, -1 };
+	/* catch extra tags */
 	while ((c = fgetc(fp)) != EOF && c == ';') {
-		cmt = parsecomment(fp);
-		switch (cmt->op) {
+
+		t = readtag(fp);
+		switch (t->name) {
 		case AUTHOR:
-			m->author = estrdup(cmt->val.s);
+			m->author = estrdup(t->val);
 			break;
 		case COMMENT:
-			m->comment = estrdup(cmt->val.s);
+			m->comment = estrdup(t->val);
 			break;
 		case LEVEL:
 			/* empty grid, error */
 			warning("empty map: %d", n);
 			return NULL;
-		case PASS:
-			break;
 		}
-		freecomment(cmt);
+		freetag(t);
 	}
 	/*
-	 * avoid the first map space to be blown
-	 * by the "extra comment loop" condition
+	 * Avoid the first map space to be blown
+	 * by the "extra comment" loop condition.
 	 */
-	fseek(fp, -1, SEEK_CUR);
+	if (c != EOF)
+		fseek(fp, -1, SEEK_CUR);
 
-	/* fill the grid */
+	/* fill grid */
 	x = 0;
 	y = 0;
 	m->size = getmapsize(fp);
+	if (m->size.x == 0 && m->size.y == 0) {
+		warning("empty map: %d", n);
+		return NULL;
+	}
 	m->grid = emalloc(sizeof(Space) * m->size.x);
 	for (i = 0; i < m->size.x; i++) {
 		m->grid[i] = emalloc(sizeof(Space) * m->size.y);
@@ -161,123 +162,74 @@ loadmap(char *file, int n)
 			m->grid[x][y].type = c;
 			m->grid[x][y].content = EMPTY;
 			break;
-		case PLAYER:
+		case '*':
+			m->grid[x][y].type = TARGET;
+			m->grid[x][y].content = PLAYER;
 			m->player = (Pair){ x, y };
-			/* fallthrough */
+			break;
+		case PLAYER:
+			m->grid[x][y].type = FLOOR;
+			m->grid[x][y].content = PLAYER;
+			m->player = (Pair){ x, y };
+			break;
 		case BOX:
 			m->grid[x][y].type = FLOOR;
-			m->grid[x][y].content = c;
+			m->grid[x][y].content = BOX;
 			break;
 		default:
-			warning("unknown character %c, in map: %d", c, n);
+			warning("unknow character %c, in map: %d", c, n);
 			return NULL;
 		}
 		x++;
 	}
 	if (m->player.x == -1 && m->player.y == -1) {
-		warning("no player in map: %d");
+		warning("no player in map: %d", n);
 		return NULL;
 	}
 	fclose(fp);
 	return m;
 }
 
-static struct comment *
-parsecomment(FILE *fp)
+static struct tag *
+readtag(FILE *fp)
 {
 	int c;
 	int i;
-	int opsize, valsize;
-	char *op, *val;
-	struct comment *cmt;
+	int namesize, valsize;
+	char *name, *val;
+	struct tag *t;
 
-	cmt = emalloc(sizeof(struct comment));
-	cmt->op = PASS;
-	c = 0;
-	opsize = 16;
-	op = emalloc(opsize);
-	for (i = 0; (c = fgetc(fp)) && c != ' '; i++) {
-		if (c == EOF || c == '\n') {
-			return cmt;
+	t = emalloc(sizeof(struct tag));
+	namesize = 8;
+	name = emalloc(namesize);
+	for (i = 0; (c = fgetc(fp)) && c != EOF && c != ' ' && c != '\n'; i++) {
+		if (i > namesize - 2)
+			name = erealloc(name, namesize *= 2);
+		name[i] = c;
+	}
+	if (!strcmp(name, "AUTHOR"))
+		t->name = AUTHOR;
+	else if (!strcmp(name, "COMMENT"))
+		t->name = COMMENT;
+	else if (!strcmp(name, "LEVEL"))
+		t->name = LEVEL;
+	else if (!strcmp(name, "MAXLEVEL"))
+		t->name = MAXLEVEL;
+	else
+		t->name = PASS;
+	free(name);
+	t->val = NULL;
+	if (c == ' ') {
+		valsize = 8;
+		val = emalloc(valsize);
+		for (i = 0; (c = fgetc(fp)) && c != EOF && c != '\n'; i++) {
+			if (i > valsize - 2)
+				val = erealloc(val, valsize *= 2);
+			val[i] = c;
 		}
-		if (i > opsize - 2)
-			op = erealloc(op, opsize * 2);
-		op[i] = c;
+		t->val = emalloc(i);
+		strcpy(t->val, val);
+		free(val);
 	}
-	if (strlen(op) == 0)
-		return cmt;
-
-	c = 0;
-	valsize = 16;
-	val = emalloc(valsize);
-	for (i = 0; (c = fgetc(fp)) && c != '\n' && c != EOF; i++) {
-		if (i > valsize - 2)
-			val = erealloc(val, valsize * 2);
-		val[i] = c;
-	}
-
-	if (!strcmp(op, "AUTHOR")) {
-		cmt->op = AUTHOR;
-		cmt->val.s = emalloc(i);
-		strcpy(cmt->val.s, val);
-	} else if (!strcmp(op, "COMMENT")) {
-		cmt->op = COMMENT;
-		cmt->val.s = emalloc(i);
-		strcpy(cmt->val.s, val);
-	} else if (!strcmp(op, "LEVEL")) {
-		cmt->op = LEVEL;
-		cmt->val.i = (int)estrtol(val, 10);
-	} else {
-		cmt->op = PASS;
-	}
-	free(op);
-	free(val);
-
-	return cmt;
-}
-
-int
-savemap(Map *m, Stack *s, char *file)
-{
-	char bufpath[] = "/tmp/bufsokoban";
-	Stack pop;
-	long int offset;
-	int c;
-	int i;
-	FILE *fp;
-	FILE *buf;
-
-	if ((fp = fopen(file, "a+")) == NULL) {
-		warning("could not open file: %s", file);
-		return 1;
-	}
-	/* check if a move set is already saved in the file for this map */
-	if (gotolevel(fp, m->id)) {
-		/* simply append to end of file */
-		fseek(fp, 0, SEEK_END);
-		fprintf(fp, ";LEVEL %d\n", m->id);
-		while (!popstack(&s, &pop))
-			fprintf(fp, "%d,%d,%d,", pop.move.x, pop.move.y, pop.boxmoved);
-		fputc('\n', fp);
-	} else {
-		/* edit old move set */
-		if ((buf = fopen(bufpath, "w")) == NULL) {
-			warning("could not open file: %s", file);
-			return 1;
-		}
-		offset = ftell(fp);
-		fseek(fp, 0, SEEK_SET);
-		for (i = 0; (c = getc(fp)) != EOF && i < offset; i++)
-			fputc(c, buf);
-		while ((c = getc(fp)) != EOF && c != '\n');
-		while (!popstack(&s, &pop))
-			fprintf(buf, "%d,%d,%d,", pop.move.x, pop.move.y, pop.boxmoved);
-		fputc('\n', buf);
-		while ((c = getc(fp)) != EOF)
-			fputc(c, buf);
-		fclose(buf);
-		rename(bufpath, file);
-	}
-	fclose(fp);
-	return 0;
+	return t;
 }
