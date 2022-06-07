@@ -5,7 +5,7 @@
 
 static char spacetochar(Space *s);
 
-void display(Map* map)
+void display(Map* map, int mvnb)
 {
   // clear
   printf("\e[1;1H\e[2J");
@@ -29,38 +29,25 @@ void display(Map* map)
     printf("%s\n", ligne);
     for (int i = 0; i < maxx+1; i++) ligne[i] = 0;
   }
+  free(ligne);
   // print author if exist and map id
   if (map->author && *map->author)
     printf("\nMap n°%u from %s\n", map->id, map->author);
   else
     printf("\nMap n°%u \n", map->id);
-
-  free(ligne);
+  // print movement nb
+  printf("\nYou made %d strokes\n",mvnb);
 }
 
+
 static char spacetochar(Space *s){
-  char c = '!';
-  switch (s->type) {
-    case WALL:
-      c = '#';
-      break;
-    case FLOOR:
-      c = ' ';
-      break;
-    case TARGET:
-      c = '.';
-      break;
-  }
-  switch (s->content) {
-    case PLAYER:  //TODO faire un choix
-      c = '@';
-      break;
-    case BOX:
-      c = '$';
-      break;
-    case EMPTY:
-      break;
-  }
-  // if(c == '!') error("spacetochar : invalid input space");  TODO regler ce pb
+  // cas sol (défault)
+  char c = ' ';
+  //autres cas
+  if (s->type == TARGET && s->content == BOX) c = '*';
+  else if (s->content == BOX) c = '$';
+  else if (s->type == TARGET) c = '.';
+  else if (s->type == WALL) c = '#';
+
   return c;
 }
