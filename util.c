@@ -79,3 +79,13 @@ estrtol(const char *nptr, int base)
 		error("invalid integer: %s", nptr);
 	return out;
 }
+
+FILE *
+efopen(const char *path, const char *mode)
+{
+	FILE *fp;
+
+	if ((fp = fopen(path, mode)) == NULL)
+		error("could not open file: %s", path);
+	return fp;
+}
