@@ -16,6 +16,7 @@ static char spacetochar(Space *s);
 int digitnb ( int nb );
 static void displaycursor();
 
+
 void display(Map* map, int mvnb)
 {
 	// clear
@@ -27,14 +28,14 @@ void display(Map* map, int mvnb)
 		printf("\n\n");
 	// display map
 	int maxx = map->size.x, maxy = map->size.y;
-	char* ligne = emalloc(sizeof(char)*maxx+1); //emalloc met à 0
+	char* ligne = emalloc(sizeof(char)*maxx+1);
 	for (int y = 0; y < maxy; y++) {
 		for (int x = 0; x < maxx; x++) {
 			ligne[x] = spacetochar(&map->grid[x][y]);
 		}
 		//display player
 		if (map->player.y == y)
-			ligne[map->player.x] = '@'; //TODO faire un choix entre map->player et map->grid[][].content
+			ligne[map->player.x] = '@';
 		printf("%s\n", ligne);
 		for (int i = 0; i < maxx+1; i++) ligne[i] = 0;
 	}
@@ -48,6 +49,28 @@ void display(Map* map, int mvnb)
 	printf("\nYou made %d strokes\n",mvnb);
 }
 
+
+void displaystr(char *s) {
+	printf("\n%s\n", s);
+	displaycursor();
+}
+
+
+void displaywarning(char *s) {
+	int l = strlen(s);
+	char *border = emalloc(l);
+	memset(border, '=', l-1);
+	border[l] = 0;
+
+	printf("\n/%s\\\n", border);
+	printf(" %s", s);
+	printf("\\%s/\n", border);
+	free(border);
+	displaycursor();
+}
+
+
+/// --- CURSOR --- \\\
 
 static void displaycursor(){
 	int line0 = 3, column0 = 1;
@@ -74,26 +97,6 @@ static char spacetochar(Space *s){
 }
 
 
-void displaystr(char *s) {
-	printf("\n%s\n", s);
-	displaycursor();
-}
-
-
-void displaywarning(char *s) {
-	int l = strlen(s);
-	char *border = emalloc(l);
-	memset(border, '=', l-1);
-	border[l] = 0;
-
-	printf("\n/%s\\\n", border);
-	printf(" %s", s);
-	printf("\\%s/\n", border);
-	free(border);
-	displaycursor();
-}
-
-
 void setcursor(Map *map, Pair pos){
 	int px = pos.x, py = pos.y;
 	Pair ms = map->size;
@@ -109,11 +112,3 @@ void movecursor(Map *map, Pair mvt){
 
 
 Pair getcursor() {return cursorpos;}
-
-
-int digitnb ( int nb )
-{
-	int i;
-	for (i=1; nb >= 10; nb /= 10, i++);
-	return i;
-}
