@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -96,9 +97,15 @@ void displaystr(char *s) {
 }
 
 
-void displaywarning(char *s) {
+void displaywarning(char *fmt, ...) {
+	va_list ap;
+
 	printf("\e[1A\e[2K");
-	printf("WARNING : %s\n", s);
+	va_start(ap, fmt);
+	(void)printf("WARNING : ");
+	(void)vprintf(fmt, ap);
+	va_end(ap);
+	putchar('\n');
 	displaycursor();
 }
 

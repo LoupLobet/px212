@@ -335,7 +335,6 @@ loadsave(int id, char *file)
 
 	while ((c = fgetc(fp)) != EOF && c == ';') {
 		t = readtag(fp);
-
 		if (t->name == SAVE) {
 			/*
 			 * We makes assumption that t->val is a non ill formed save
