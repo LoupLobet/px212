@@ -337,7 +337,6 @@ loadsave(int id, char *file)
 		t = readtag(fp);
 
 		if (t->name == SAVE) {
-			puts("OK");
 			/*
 			 * We makes assumption that t->val is a non ill formed save
 			 * (comma separated digits list, with a multiple of 3 length).
