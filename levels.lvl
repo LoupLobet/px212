@@ -73,7 +73,11 @@ $            1       f       0    100     0    2  1000 heavy box
           #    #
           ######
 ;LEVEL 6
-######  ###
+;COMMENT j'essaye de perturber mon algorithme
+;COMMENT et j'ai reussi
+;SAVE 1,0,0,1,0,0,0,2,1,
+;TEST
+####  ###
 #.. @# ## ##
 #.. $###   #
 #..     $$ #
