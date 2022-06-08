@@ -3,10 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "display.h"
 #include "loader.h"
-#include "util.h"
-#include "sokoban.h"
 #include "move.h"
+#include "sokoban.h"
+#include "util.h"
 
 enum { PASS, AUTHOR, COMMENT, LEVEL, MAXLEVEL, SAVE };
 
@@ -20,6 +21,11 @@ static Pair	 getmapsize(FILE *);
 static int	 gotolevel(FILE *, int);
 static struct tag	*readtag(FILE *);
 
+/**
+ * @brief Frees a map allocated with loadmap().
+ * @param m map
+ * @return void
+ */
 void
 freemap(Map *m)
 {
@@ -35,6 +41,11 @@ freemap(Map *m)
 	free(m);
 }
 
+/**
+ * @brief Frees a tag allocated with readtag().
+ * @param t tag
+ * @return void
+ */
 static void
 freetag(struct tag *t)
 {
@@ -43,6 +54,13 @@ freetag(struct tag *t)
 	free(t);
 }
 
+/**
+ * @brief Returns the size of map from a file pointer. The file position
+ * indicator must be set to the first character of the map, and the file
+ * pointer position indicator remains unchanged after the execution.
+ * @param fp file pointer
+ * @return Pair { columns, lines }
+ */
 static Pair
 getmapsize(FILE *fp)
 {
@@ -68,8 +86,15 @@ getmapsize(FILE *fp)
 	return size;
 }
 
+/**
+ * @brief Searches in a file for a specific map, by moving the file
+ * pointer to the begining of the line right after the LEVEL tag.
+ * @param fp file pointer
+ * @param id map id
+ * @return int 0 if map exists, 1 otherwise
+ */
 static int
-gotolevel(FILE *fp, int n)
+gotolevel(FILE *fp, int id)
 {
 	int c;
 	struct tag *t;
@@ -78,7 +103,7 @@ gotolevel(FILE *fp, int n)
 	while ((c = fgetc(fp)) != EOF) {
 		if (c == ';') {
 			t = readtag(fp);
-			if (t->name == LEVEL && estrtol(t->val, 10) == n) {
+			if (t->name == LEVEL && estrtol(t->val, 10) == id) {
 				freetag(t);
 				return 0;
 			}
@@ -88,6 +113,12 @@ gotolevel(FILE *fp, int n)
 	return 1;
 }
 
+/**
+ * @brief Allocates a Map struct from a file.
+ * @param file file path
+ * @param id map id
+ * @return Map* loaded map
+ */
 Map *
 loadmap(char *file, int id)
 {
@@ -99,11 +130,11 @@ loadmap(char *file, int id)
 	Map *m;
 
 	if ((fp = fopen(file, "r")) == NULL) {
-		warning("could not open file: %s", file);
+		displaywarning("could not open file: %s", file);
 		return NULL;
 	}
 	if (gotolevel(fp, id)) {
-		warning("no such level: %s", file);
+		displaywarning("no such level: %s", file);
 		return NULL;
 	}
 	m = emalloc(sizeof(Map));
@@ -124,7 +155,7 @@ loadmap(char *file, int id)
 			break;
 		case LEVEL:
 			/* empty grid, error */
-			warning("empty map: %d", id);
+			displaywarning("empty map: %d", id);
 			return NULL;
 		}
 		freetag(t);
@@ -141,7 +172,7 @@ loadmap(char *file, int id)
 	y = 0;
 	m->size = getmapsize(fp);
 	if (m->size.x == 0 && m->size.y == 0) {
-		warning("empty map: %d", id);
+		displaywarning("empty map: %d", id);
 		return NULL;
 	}
 	m->grid = emalloc(sizeof(Space) * m->size.x);
@@ -177,19 +208,26 @@ loadmap(char *file, int id)
 			m->grid[x][y].content = BOX;
 			break;
 		default:
-			warning("unknow character %c, in map: %d", c, id);
+			displaywarning("unknow character %c, in map: %d", c, id);
 			return NULL;
 		}
 		x++;
 	}
 	if (m->player.x == -1 && m->player.y == -1) {
-		warning("no player in map: %d", id);
+		displaywarning("no player in map: %d", id);
 		return NULL;
 	}
 	fclose(fp);
 	return m;
 }
 
+/**
+ * @brief Parses a tag line to a tag struct. The file pointer position
+ * indicator must be placed right after  * the ';' on the tag line.
+ * The tag struct can be free with freetag().
+ * @param fp file pointer
+ * @return tag* parsed tag
+ */
 static struct tag *
 readtag(FILE *fp)
 {
@@ -237,6 +275,13 @@ readtag(FILE *fp)
 	return t;
 }
 
+/**
+ * @brief Saves a map progression to a .lvl file.
+ * @param m allocated map struct
+ * @param s map associated movements stack
+ * @param file file path
+ * @return int 0 if map is successfully saved to the, 1 otherwise
+ */
 int
 savemap(Map *m, Stack *s, char *file)
 {
@@ -252,40 +297,42 @@ savemap(Map *m, Stack *s, char *file)
 	char *temp;
 
 	if ((temp = mktemp(template)) == NULL) {
-		warning("impossible to create temp file");
+		displaywarning("impossible to create temp file");
 		return 1;
 	}
 	/* race condition here */
 	if ((wfp = fopen(temp, "w")) == NULL) {
-		warning("couldn't open temp file");
+		displaywarning("couldn't open temp file");
 		return 1;
 	}
 	if ((rfp = fopen(file, "r")) == NULL) {
-		warning("couldn't open file: %s", file);
+		displaywarning("couldn't open file: %s", file);
 		return 1;
 	}
 
 	if (gotolevel(rfp, m->id)) {
-		warning("no such level %d in file: %s", m->id, file);
+		displaywarning("no such level %d in file: %s", m->id, file);
 		return 1;
 	}
 	headpos = ftell(rfp);
+	tailpos = 0;
 	/* check for an already existing ;SAVE tag */
 	while ((c = fgetc(rfp)) != EOF && c == ';') {
 		t = readtag(rfp);
 		if (t->name == SAVE) {
+			tailpos++; /* ignore the '\n' of the existing SAVE tag */
 			freetag(t);
 			break;
 		}
 		headpos = ftell(rfp);
 		freetag(t);
 	}
-	/* Avoid the first map space to be blowb by the loop condition. */
+	/* Avoid the first map space to be blown by the loop condition. */
 	if (c != EOF)
 		fseek(rfp, -1, SEEK_CUR);
-	tailpos = ftell(rfp);
-	rewind(rfp);
+	tailpos += ftell(rfp);
 
+	rewind(rfp);
 	/* head */
 	for (i = 0; i < headpos; i++) {
 		c = fgetc(rfp); /* no EOF */
@@ -304,7 +351,7 @@ savemap(Map *m, Stack *s, char *file)
 	}
 	(void)fputc('\n', wfp);
 	/* tail */
-	fseek(rfp, tailpos + 1, SEEK_SET);
+	fseek(rfp, tailpos, SEEK_SET);
 	while ((c = fgetc(rfp)) != EOF)
 		(void)fputc(c, wfp);
 	fclose(rfp);
@@ -314,6 +361,13 @@ savemap(Map *m, Stack *s, char *file)
 	return 0;
 }
 
+/**
+ * @brief Extracts a map save from a file, and returns the move sequence
+ * needed to get back the saved map state.
+ * @param id map id
+ * @param file file path
+ * @return Stack* movements stack to get saved map state
+ */
 Stack *
 loadsave(int id, char *file)
 {
@@ -327,7 +381,7 @@ loadsave(int id, char *file)
 	struct tag *t;
 
 	if ((fp = fopen(file, "r")) == NULL) {
-		warning("couldn't open file: %s", file);
+		displaywarning("couldn't open file: %s", file);
 		return NULL;
 	}
 	if (gotolevel(fp, id))
