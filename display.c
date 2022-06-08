@@ -32,7 +32,7 @@ static void displaymap(Map* map, int leftmargin)	{
 		}
 		//display player
 		if (map->player.y == y)
-			ligne[map->player.x] = '@';
+			ligne[map->player.x+leftmargin] = '@';
 		printf("%s\n", ligne);
 		for (int i = 0; i < maxx+1; i++) ligne[i+leftmargin] = 0;
 	}
@@ -151,4 +151,6 @@ void movecursor(Map *map, Pair mvt){
 }
 
 
-Pair getcursor() {return cursorpos;}
+Pair getcursor() {
+	return (Pair){cursorpos.x - cursor0.x, cursorpos.y - cursor0.y};
+}
