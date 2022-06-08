@@ -48,10 +48,10 @@ static void displayheader(Map* map)	{
 		char *border2 = emalloc(sizeof(char) * (b2len+1));
 		memset(border2, '=', b2len);
 		printf("\n//==%sGame of Sokoban==%s\\\\\n\n",border1, border2);
-		cursor0 = (Pair){2, 4};
+		cursor0 = (Pair){2, 3};
 	}	else {
 		printf("\n//==Game of Sokoban==\\\\\n\n");
-		cursor0 = (Pair){(23-size)/2, 4}; // c degeu de faire calculs et display ici
+		cursor0 = (Pair){(23-size)/2, 3}; // c degeu de faire calculs et display ici
 	}
 }
 
@@ -83,26 +83,22 @@ void display(Map* map, int mvnb)
 	printf("\nYou made %d strokes\n",mvnb);
 
 	// print help
-	printf("\n - Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n - Press l nblevel and enter to choose a new level\n - Press 'n' to go to next level\n - Press 'p' to go to previous level\n - Press 'c' to pass in cursor mode and 'ESC' to exit\n");
+	// printf("\n - Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n - Press l nblevel and enter to choose a new level\n - Press 'n' to go to next level\n - Press 'p' to go to previous level\n - Press 'c' to pass in cursor mode and 'ESC' to exit\n");
+
+	printf("\n\n");
 }
 
 
 void displaystr(char *s) {
-	printf("\n%s\n", s);
+	printf("\e[1A\e[2K");
+	printf("%s\n", s);
 	displaycursor();
 }
 
 
 void displaywarning(char *s) {
-	int l = strlen(s);
-	char *border = emalloc(l);
-	memset(border, '=', l-1);
-	border[l] = 0;
-
-	printf("\n/%s\\\n", border);
-	printf(" %s", s);
-	printf("\\%s/\n", border);
-	free(border);
+	printf("\e[1A\e[2K");
+	printf("WARNING : %s\n", s);
 	displaycursor();
 }
 
