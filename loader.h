@@ -2,4 +2,6 @@
 
 void	 freemap(Map *);
 Map	*loadmap(char *, int);
+int	 savemap(Map *, Stack *, char *);
+Stack	*loadsave(int, char *);
 
