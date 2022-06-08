@@ -31,7 +31,7 @@ static void displaymap(Map* map, int leftmargin)	{
 		}
 		//display player
 		if (map->player.y == y)
-			ligne[map->player.x] = '@';
+			ligne[y] = '@';
 		printf("%s\n", ligne);
 		for (int i = 0; i < maxx+1; i++) ligne[i+leftmargin] = 0;
 	}
