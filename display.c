@@ -144,4 +144,6 @@ void movecursor(Map *map, Pair mvt){
 }
 
 
-Pair getcursor() {return cursorpos;}
+Pair getcursor() {
+	return (Pair){cursorpos.x - cursor0.x, cursorpos.y - cursor0.y};
+}
