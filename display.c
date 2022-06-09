@@ -141,7 +141,7 @@ void setcursor(Map *map, Pair pos){
 	int px = pos.x, py = pos.y;
 	Pair ms = map->size;
 	if(px == -1 && py == -1) cursorpos = pos;
-	else cursorpos = (Pair){MIN(MAX(pos.x, 0), ms.x), MIN(MAX(pos.y, 0), ms.y)};
+	else cursorpos = (Pair){MIN(MAX(pos.x, 0), ms.x-1), MIN(MAX(pos.y, 0), ms.y-1)};
 	displaycursor();
 }
 
