@@ -4,6 +4,7 @@
 #include "sokoban.h"
 #include "display.h"
 #include "move.h"
+#include "util.h"
 #include "ia.h"
 
 
