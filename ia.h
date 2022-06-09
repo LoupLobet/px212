@@ -1,3 +1,4 @@
 #include "sokoban.h"
 
-Stack *playerwaybetween(Map* map, Pair posa, Pair posb);
+Stack *playerwayto(Map* map, Pair pos);
+Stack *boxwaybetween(Map* map, Pair posa, Pair posb);

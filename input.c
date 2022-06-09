@@ -1,22 +1,23 @@
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <stdio.h>
-#include <termios.h>
-#include <unistd.h>
-#include <unistd.h>
-
 #include "input.h"
-#include "termios.h"
+struct termios new;
+struct termios old;
+
+/**
+ * @brief We configure the terminal to read one character at a time. We don't want to wait for a newline and we don't want to echo the character.
+ * 
+ * @return int return 0 if the configuration is correct, -1 otherwise.
+ */
 
 int
 configureTerminal(void)
 {
-	struct termios new;
+	
 
-	if (tcgetattr(0,&new)==-1) {
+	if (tcgetattr(0,&old)==-1) {
 		perror("tcgetattr");
 		return -1;
 	}
+	new = old;
 	new.c_lflag &= ~(ICANON); /* canonical termianal */
 	new.c_lflag &= ~(ECHO);   /* do not display keyboard entries anymore */
 	new.c_cc[VMIN]=1;
@@ -27,6 +28,28 @@ configureTerminal(void)
 	}
 	return 1;
 }
+
+/**
+ * @brief 
+ * 
+ * @return int Return 0 if the configuration is correct, -1 otherwise.
+ */
+
+int
+resetTerminal(void)
+{
+	if (tcsetattr(0,TCSANOW,&old)==-1) {
+		perror("tcsetattr");
+		return 0;
+	}
+	return 1;
+}
+
+/**
+ * @brief We read one character from the terminal.
+ * 
+ * @return int Return the character read.
+ */
 
 int
 io(void) {
@@ -62,3 +85,5 @@ io(void) {
 		break;
 	}
 }
+
+
