@@ -54,6 +54,32 @@ freetag(struct tag *t)
 	free(t);
 }
 
+int
+getmaxlevel(char *file)
+{
+	int c;
+	int maxlevel;
+	FILE *fp;
+	struct tag *t;
+
+	if ((fp = fopen(file, "r")) == NULL)
+		return -1;
+	while ((c = fgetc(fp)) != EOF) {
+		if (c == ';') {
+			t = readtag(fp);
+			if (t->name == MAXLEVEL) {
+				if (t->val == NULL)
+					return -1;
+				maxlevel = estrtol(t->val, 10);
+				freetag(t);
+				return maxlevel;
+			}
+			freetag(t);
+		}
+	}
+	return -1;
+}
+
 /**
  * @brief Returns the size of map from a file pointer. The file position
  * indicator must be set to the first character of the map, and the file
@@ -274,7 +300,7 @@ readtag(FILE *fp)
 			val[i] = c;
 		}
 		val[i] = '\0';
-		t->val = emalloc(i);
+		t->val = emalloc(i + 1);
 		strcpy(t->val, val);
 		free(val);
 	}
@@ -297,7 +323,6 @@ savemap(Map *m, Stack *s, char *file)
 	long headpos, tailpos;
 	int c;
 	int i;
-	int fd;
 	FILE *rfp, *wfp;
 	struct tag *t;
 	char *temp;
@@ -362,7 +387,6 @@ savemap(Map *m, Stack *s, char *file)
 		(void)fputc(c, wfp);
 	fclose(rfp);
 	fclose(wfp);
-	close(fd);
 	rename(temp, file);
 	return 0;
 }
@@ -377,7 +401,6 @@ savemap(Map *m, Stack *s, char *file)
 Stack *
 loadsave(char *file, int id)
 {
-	Stack pop;
 	Pair move;
 	int boxmoved;
 	int c;
