@@ -22,6 +22,7 @@ typedef struct {
     char *comment;
     int id;
     char *author;
+    int strokes;
 } Map;
 
 typedef struct Stack {

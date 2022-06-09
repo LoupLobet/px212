@@ -188,12 +188,15 @@ loadmap(char *file, int id)
 		}
 		switch (c) {
 		case WALL:
-			m->grid[x][y].type = c;
+			m->grid[x][y].type = WALL;
 			m->grid[x][y].content = WALL;
 			break;
 		case FLOOR:
+			m->grid[x][y].type = FLOOR;
+			m->grid[x][y].content = EMPTY;
+			break;
 		case TARGET:
-			m->grid[x][y].type = c;
+			m->grid[x][y].type = TARGET;
 			m->grid[x][y].content = EMPTY;
 			break;
 		case '*':
@@ -372,7 +375,7 @@ savemap(Map *m, Stack *s, char *file)
  * @return Stack* movements stack to get saved map state
  */
 Stack *
-loadsave(int id, char *file)
+loadsave(char *file, int id)
 {
 	Stack pop;
 	Pair move;

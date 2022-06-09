@@ -65,7 +65,6 @@ cursormove(Map *m)
 		default:
 			displaywarning("Invalid move");
 		}
-		displaycursor();
 	}
 }
 
@@ -83,17 +82,30 @@ cursormove(Map *m)
  * @param stroke Number of strokes
  * @return void
  */
-void
+int
 execstack(Stack *input, Map *m, Stack **output)
 {
 	Stack pop;
+	int n;
 
+	n = 0;
 	if (input == NULL)
 		displaywarning("No move to do");
 	else {
-		while (!popstack(&input, &pop))
+		while (!popstack(&input, &pop)) {
 			move(m, pop.move, output);
+			n++;
+		}
 	}
+	return n;
+}
+
+void
+freestack(Stack **s)
+{
+	Stack dpop;
+
+	while(!popstack(s, &dpop));
 }
 
 /**
@@ -130,6 +142,7 @@ move (Map *m, Pair move,Stack **s)
         m->grid[targ.x][targ.y].content = PLAYER;
 		if (s != NULL)
 			pushstack(s, move, boxmoved);
+		m->strokes++;
         return 1;
     }
     return 0;
@@ -200,7 +213,7 @@ Stack
  * @return int 0 if a move has been undone, 1 otherwise
  */
 int
-undomove(Stack **s, Map *m)
+undomove(Map *m, Stack **s)
 {
 	Stack pop;
 
@@ -216,5 +229,6 @@ undomove(Stack **s, Map *m)
 		m->grid[m->player.x + pop.move.x][m->player.y + pop.move.y].content = BOX;
 		m->grid[m->player.x + 2*(pop.move.x)][m->player.y + 2*(pop.move.y)].content = EMPTY;
 	}
+	m->strokes--;
 	return 0;
 }

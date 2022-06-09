@@ -9,7 +9,7 @@ typedef struct {
 	Pair pos;
   int cost;
   int heuristic;
-	Pair poscamefrom;
+	Pair camefrom;
 } Node;
 
 
@@ -25,8 +25,8 @@ static Pair pairsub(Pair pa, Pair pb);
 static int dist(Pair posa, Pair posb);
 
 static Stack *redopath(PQelement **queueO, PQelement **queueC, Node *n);
-static int neighborvalid(Pair pos, Map* map);
-static Node *createnode(Pair pos, int cost, int heuristic, Pair poscamefrom);
+static int walkable(Pair pos, Map* map);
+static Node *createnode(Pair pos, int cost, int heuristic, Pair camefrom);
 
 static void insert(PQelement **queue, Node *node);
 static Node* take(PQelement **queue, Pair pos);
@@ -36,26 +36,13 @@ static int isin(PQelement *queue, Pair nodepos);
 static void empty(PQelement **queue);
 
 
-
-//////////////// PAIR
-int pairequal(Pair pa, Pair pb){
-	return pa.x == pb.x && pa.y == pb.y;
-}
-
-Pair pairadd(Pair pa, Pair pb){
-	return (Pair){pa.x + pb.x, pa.y + pb.y};
-}
-
-Pair pairsub(Pair pa, Pair pb){
-	return (Pair){pa.x - pb.x, pa.y - pb.y};
-}
-
-int dist(Pair posa, Pair posb){
-	return abs(posa.x - posb.x) + abs(posa.y - posb.y);
-}
-//////////////// PAIR
-
-
+/**
+ * @brief Finds the path for the player between two positions (if it exist).
+ * @param map the map on wich the player evolve
+ * @param posa the start position
+ * @param posb the end position
+ * @return Stack* the stack of moves to do to to go from posa to posb, NULL if there is no path
+ */
 Stack *playerwaybetween(Map* map, Pair posa, Pair posb){
 	static Pair moves[] = {(Pair){-1, 0}, (Pair){0, -1}, (Pair){0, 1}, (Pair){1, 0}};
 
@@ -75,7 +62,7 @@ Stack *playerwaybetween(Map* map, Pair posa, Pair posb){
 		}
 		for (int i = 0; i < 4; i++) { 															// each neighbor
 			Pair neighborpos = pairadd(moves[i], current->pos);				// each neighbor
-				if (neighborvalid(neighborpos, map))  									// each neighbor
+				if (walkable(neighborpos, map))  									// each neighbor
 				{
 				int tentativecost = current->cost + 1;
 				if (!isin(closedlist, neighborpos)){										// not in closedlist
@@ -84,7 +71,7 @@ Stack *playerwaybetween(Map* map, Pair posa, Pair posb){
 						if (tentativecost < neighbornode->cost){						// if.. modify it
 							neighbornode->cost = tentativecost;
 							neighbornode->heuristic = tentativecost + dist(neighborpos, posb);
-							neighbornode->poscamefrom = current->pos;
+							neighbornode->camefrom = current->pos;
 							insert(&openlist, neighbornode);									// put it back
 						}
 					} else {																							// create it
@@ -101,27 +88,50 @@ Stack *playerwaybetween(Map* map, Pair posa, Pair posb){
 	return NULL;
 }
 
-
-int neighborvalid(Pair pos, Map* map) {
+/**
+ * @brief Checks if a space is walkable.
+ * @param pos the space position
+ * @param map the map on wich the player evolve
+ * @return int 1 if walkable, 0 else
+ */
+static int walkable(Pair pos, Map* map) {
 	Space s = map->grid[pos.x][pos.y];
 	return s.type != WALL && s.content != BOX;
 }
 
-Node *createnode(Pair pos, int cost, int heuristic, Pair poscamefrom){
+/**
+ * @brief Creates a node.
+ * @param pos node's position
+ * @param cost node's cost
+ * @param heuristic node's heuristic
+ * @param camefrom node's parent positin
+ * @return Node* the created node
+ */
+static Node *createnode(Pair pos, int cost, int heuristic, Pair camefrom){
 	Node *n = emalloc(sizeof(Node));
 	n->pos = pos;
 	n->cost = cost;
 	n->heuristic = heuristic;
-	n->poscamefrom = poscamefrom;
+	n->camefrom = camefrom;
 	return n;
 }
 
+// TODO finish
 
-Stack *redopath(PQelement **queueO, PQelement **queueC, Node *n){
+/**
+ * @brief Creates the stack from the result of the A* algorithm by traveling the path backward.
+ * @param pqueueO os node's position
+ * @param queueC closed
+ * @param heuristic node's heuristic
+ * @param camefrom node's parent positin
+ * @return Node* the created node
+ */
+static Stack *redopath(PQelement **queueO, PQelement **queueC, Node *n){
 	Stack	*s = NULL;
-	while (!pairequal(n->pos, n->poscamefrom)) {
-		Node *m = take(queueC, n->poscamefrom);
-		if(m == NULL) m = take(queueO, n->poscamefrom);
+	while (!pairequal(n->pos, n->camefrom)) {
+		Node *m = take(queueC, n->camefrom);
+		printf("BBBBBB\n");
+		if(m == NULL) {m = take(queueO, n->camefrom); printf("AAAAAAA\n");};// TODO VERIF CA
 		Pair move = pairsub(n->pos, m->pos);
 		pushstack(&s, move, 0);
 		free(n);
@@ -131,17 +141,26 @@ Stack *redopath(PQelement **queueO, PQelement **queueC, Node *n){
 	return s;
 }
 
-
-//////////////// PQ
-void insert(PQelement **queue, Node *node){
+/**
+ * @brief Inserts an element in the priority queue.
+ * @param queue head address of the queue
+ * @param node node to insert ine the priority queue
+ * @return void
+ */
+static void insert(PQelement **queue, Node *node){
 	PQelement * element = emalloc(sizeof(PQelement));
 	element->next = *queue;
 	element->node = node;
 	*queue = element;
 }
 
-
-Node* take(PQelement **queue, Pair pos){
+/**
+ * @brief Takes an element out of the priority queue, designated by its position .
+ * @param queue head address of the queue
+ * @param pos position attribute of the node to take
+ * @return Node* the node taken from the queue, NULL if there is none
+ */
+static Node* take(PQelement **queue, Pair pos){
 	Node *n = NULL;
 	if (isempty(*queue));																	//cas vide
 	else if (pairequal((*queue)->node->pos, pos)){ 				//cas tête
@@ -163,8 +182,12 @@ Node* take(PQelement **queue, Pair pos){
 	return n;
 }
 
-
-Node* pull(PQelement **queue) {
+/**
+ * @brief Pulls out of the priority queue the element with the smallest heuristic.
+ * @param queue head address of the queue
+ * @return Node* the node pulled from the queue, NULL if there is none
+ */
+static Node* pull(PQelement **queue) {
 	if(isempty(*queue)) return NULL;
 	// find best element
 	Pair minpos = (*queue)->node->pos;
@@ -181,13 +204,22 @@ Node* pull(PQelement **queue) {
 	return take(queue, minpos);
 }
 
-
-int isempty(PQelement *queue) {
+/**
+ * @brief Checks whether or not the queue is empty.
+ * @param queue the queue
+ * @return int 1 if is empty 0 else
+ */
+static int isempty(PQelement *queue) {
 	return queue == NULL;
 }
 
-
-int isin(PQelement *queue, Pair nodepos){
+/**
+ * @brief Checks whether or not a node (designated by its position) is in the queue.
+ * @param queue the queue
+ * @param nodepos position attribute of the node to check for
+ * @return int 1 if is in 0 else
+ */
+static int isin(PQelement *queue, Pair nodepos){
 	if (isempty(queue)){
 		return 0;
 	} else {
@@ -200,8 +232,52 @@ int isin(PQelement *queue, Pair nodepos){
 	return 0;
 }
 
-
-void empty(PQelement **queue){
+/**
+ * @brief Emptys the queue and free the contained nodes
+ * @param queue the queue
+ * @return void
+ */
+static void empty(PQelement **queue){
 	while (!isempty(*queue)) free(pull(queue));
 }
-//////////////// PQ
+
+
+/**
+ * @brief Chechs whether or not two Pairs are equal
+ * @param pa first pair to compare
+ * @param pb second pair to compare
+ * @return int 1 if equality, 0 else
+ */
+static int pairequal(Pair pa, Pair pb){
+	return pa.x == pb.x && pa.y == pb.y;
+}
+
+/**
+ * @brief Adds two Pairs
+ * @param pa first pair to add
+ * @param pb second pair to add
+ * @return Pair the sum of pa and pb
+ */
+static Pair pairadd(Pair pa, Pair pb){
+	return (Pair){pa.x + pb.x, pa.y + pb.y};
+}
+
+/**
+ * @brief Substracts two Pairs
+ * @param pa first pair
+ * @param pb second pair to substract from the first one
+ * @return Pair the substraction pa - pb
+ */
+static Pair pairsub(Pair pa, Pair pb){
+	return (Pair){pa.x - pb.x, pa.y - pb.y};
+}
+
+/**
+ * @brief Calculates the signed manhatan distance between to pair
+ * @param posa end position
+ * @param posa start position
+ * @return Pair the sum of pa and pb
+ */
+static int dist(Pair posa, Pair posb){
+	return abs(posa.x - posb.x) + abs(posa.y - posb.y);
+}

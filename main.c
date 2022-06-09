@@ -1,374 +1,178 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include "display.h"
+#include "input.h"
+#include "loader.h"
+#include "move.h"
 #include "sokoban.h"
+#include "util.h"
 
+static void	usage(void);
 
-/**
- * @brief This functions count strokes in a stack of movement
- * 
- * @param s  Stack of movement
- * @return int 
- */
-int countstrokes(Stack **s){
-	Stack *p;
-	int i = 0;
-	if (NULL == s)
-		return i;
-	else{
-		
-		while (NULL != *s)
-		{
-			i++;
-			p = *s;
-			*s = p->prev;
-			
-		}
+static char *
+getstr(void)
+{
+	int i, size;
+	char c;
+	char *s;
+
+	size = 4;
+	s = emalloc(size);
+	for (i = 0; (c = io()) != 10; i++) {
+		if (i > size - 2)
+			s = realloc(s, size * 2);
+		s[i] = c;
 	}
-	return i;
+	s[i] = '\0';
+	return s;
 }
-
-
-/**
- * @brief This function initialize the map when we launch the program
- * 
- * @param m Map
- * @param file File which contain the levels
- * @param level number of level
- * @param s Stack of movement
- * @return Map* return a pointer of the new map
- */
-Map *initialisation(Map *m, char *file, int level, Stack **s)
-{
-	int stroke;
-	m = loadingmap(m, level, file,s);
-	listeAffiche(*s);
-	stroke = countstrokes(s);
-	display(m, stroke);
-
-	return m;
-}
-
-
-/**
- * @brief This function launch a map and the level we want from the file that we pass in parameter.The function verify that the map is well loaded.
- * 
- * @param m Map
- * @param level number of level
- * @param file File which contain the levels
- * @param s Stack of movement
- * @return Map* return a pointer of the new map
- */
-
-
-Map *loadingmap(Map *m, int level, char *file, Stack **s)
-{
-	Stack *p;
-	char choose;
-	m = loadmap(file, level);
-	if (m == NULL)
-	{
-		displaywarning("Could not load map");
-		error("could not load map");
-
-	}
-	
-	if ((p=loadsave(level,file)) != NULL)
-	{
-		displaystr("\nA save is detected, do you want to load it (y\\n) ? \n");
-		if ((choose = io()) == 'y')
-		{
-
-			 loadfromstack(p,m,s,0);
-
-		}
-		
-	}
-	return m;
-	
-	
-}
-
-/**
- * @brief This function launch the next level when we press 'n' in the game.
- * 
- * @param m Map
- * @param level number of level
- * @param s Stack of movement
- * @return int return number of strokes
- */
-
-int nextlevel(Map *m, int level, Stack **s)
-{
-	int stroke = 0;
-	char *file = "levels.lvl";
-	freemap(m);
-	level++;
-	m = loadingmap(m, level, file,s);
-	stroke = countstrokes(s);
-
-	return stroke;
-}
-
-/**
- * @brief This function launch the precedent level when we press 'p' in the game
- * 
- * @param m Map
- * @param level number of level
- * @param s Stack of movement
- * @return int return number of strokes
- */
-
-int prevlevel(Map *m, int level,Stack **s)
-{
-	char *file = "levels.lvl";
-	int stroke = 0;
-	if (level == 1)
-	{
-		printf("You are on the first level !\n");
-		return 0;
-	}
-
-	
-	
-	freemap(m);
-	level--;
-	m = loadingmap(m, level, file,s);
-	stroke = countstrokes(s);
-	return stroke;
-}
-
-
-/**
- * @brief This function allow the user when he press 'l' + numberLevel + enter in game to specify which level he want to play and launch it.
- * 
- * @param m Map
- * @param s Stack of movement
- * @return int return number of strokes
- */
-
-int changelevel(Map *m, Stack **s)
-{
-	int stroke = 0;
-	int size = 0;
-	int n = 0;
-	int niveau[10] = {-1};
-	char temp;
-	char *file = "levels.lvl";
-	while ((temp = io()) != 10)
-	{
-		niveau[n] = temp - '0';
-		n++;
-	}
-
-	size = n;
-	int i = 0;
-	int level = 0;
-	for (i = 0; i < size; i++)
-		level = 10 * level + niveau[i];
-
-	
-	freemap(m);
-	m = loadingmap(m, level, file,s);
-	return level;
-}
-
-/**
- * @brief This function allow the user to restart the level he play from the beginning.
- * 
- * @param m Map
- * @param level Number of level
- * @param s Stack of movement
- * @return int return number of strokes
- */
-
-int restart(Map *m, int level, Stack **s)
-{
-	int stroke = 0;
-	char *file = "levels.lvl";
-	freemap(m);
-	m = loadingmap(m, level, file,s);
-	return stroke;
-}
-
-
-/**
- * @brief This function verify that we can undo a movement and launch the function for, if we can.
- * 
- * @param m Map
- * @param s Stack of movement
- * @param stroke Number of strokes
- * @return int return number of strokes
- */
-
-int undomovement(Map *m, Stack **s, int stroke)
-{
-	if (stroke == 0)
-	{
-		displaystr("You can't undo anymore !\n");
-		
-		return 0;
-	}
-	stroke--;
-
-	undomove(s, m);
-	return stroke;
-}
-
 
 /**
  * @brief This function verify if each target of the level have a box on it by being launched after every move.
- * 
+ *
  * @param m Map
- * @return int 
+ * @return int
  */
-
-
-int verifiegagne(Map *m)
+static int
+iswin(Map *m)
 {
 	int i, j;
-	for (j = 0; j < m->size.y; j++)
-	{
-		for (i = 0; i < m->size.x; i++)
-		{
+	for (j = 0; j < m->size.y; j++) {
+		for (i = 0; i < m->size.x; i++) {
 			if (m->grid[i][j].type == TARGET && m->grid[i][j].content != BOX)
-			{
 				return 0;
-			}
 		}
 	}
 	return 1;
 }
 
+static Map *
+loadlevel(char *file, int level, Stack **s)
+{
+	Map *m;
+	Stack *save;
+
+	if ((m = loadmap(file, level)) == NULL)
+		return NULL;
+	m->strokes = 0;
+	if ((save = loadsave(file, level)) != NULL) {
+		displaystr("save detected, load it ? (y/n)");
+		if (io() == 'y')
+			m->strokes = execstack(save, m, s);
+		freestack(&save);
+	}
+	return m;
+}
+
+static Map *
+changelevel(Map *m, char *file, int level, Stack **s)
+{
+	free(m);
+	freestack(s);
+	m = loadlevel(file, level, s);
+	/* loadlevel return NULL -> changelevel returns NULL */
+	return m;
+}
+
 /**
  * @brief This function is the global structure of our program. We manage in it all the functions, how the game works by launching levels, know if we win and do the user interface.
- * 
- * @param argc 
- * @param argv 
- * @return int 
+ *
+ * @param argc
+ * @param argv
+ * @return int
  */
-
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
-
+	char c;
+	int level;
+	char *file;
 	Map *m;
 	Stack *s;
-	Stack *p;
-	int choix;
-	int stroke = 0;
-	int level = 1;
-	int tmp;
-	char temp;
-	char *file;
-	int i = 0;
-	char mystr[30];
-	char soluce[80];
-	char mov;
 
+	if (argc == 3) {
+		file = argv[1];
+		level = estrtol(argv[2], 10);
+	} else if (argc == 2) {
+		file = argv[1];
+		level = 1;
+	} else
+		usage();
+
+	s = NULL;
+	if ((m = loadlevel(file, level, &s)) == NULL)
+		error("could not load level %d from file: %s", level, file);
 	if (!configureTerminal())
-	{
-		displaywarning("Could not configure terminal");
-		error("Configuration of the terminal is impossible");
-		return 0;
-	}
+		error("could not configure terminal");
+	display(m);
 
-	if (argc == 3)
-	{
-
-		m = initialisation(m, argv[1], atoi(argv[2]),&s);
-	}
-	else if (argc == 2)
-	{
-		m = initialisation(m, argv[1], 1,&s);
-	}
-	else if (argc == 1)
-	{
-		m = initialisation(m, "levels.lvl", 1,&s);
-	}
-	else
-	{
-		displaywarning("Wrong number of arguments");
-		error("Problem of argument : Arguments must be ./prog file NbLevel");
-		return EXIT_FAILURE;
-	}
-
-	while ((mov = io()) != 27)
-	{
-
-		switch (mov)
-		{
+	while ((c = io()) != 27) { /* 27 esc */
+		switch (c) {
 		case 'U':
-			if (move(m, (Pair){0, -1}, &s))
-				stroke++;
+			move(m, (Pair){0, -1}, &s);
 			break;
 		case 'D':
-			if (move(m, (Pair){0, 1}, &s))
-				stroke++;
+			move(m, (Pair){0, 1}, &s);
 			break;
 		case 'L':
-			if (move(m, (Pair){-1, 0}, &s))
-				stroke++;
+			move(m, (Pair){-1, 0}, &s);
 			break;
 		case 'R':
-			if (move(m, (Pair){1, 0}, &s))
-				stroke++;
+			move(m, (Pair){1, 0}, &s);
 			break;
 		case 'z':
-			stroke = undomovement(m, &s, stroke);
-			break;
-		case 'r':
-			stroke = restart(m, level,&s);
+			undomove(m, &s);
 			break;
 		case 's':
-			file = "levels.lvl";
-			savemap(m,s,file);
-			return 0;
+			if (savemap(m,s,file))
+				displaywarning("couldn't save the level %d to file: %s", m->id, file);
+			break;
 		case 'l':
-			level = changelevel(m,&s);
-			stroke = countstrokes(&s);
+			level = estrtol(getstr(), 10);
+			if ((m = changelevel(m, file, level, &s)) == NULL)
+				error("could not load level %d from file: %s", level, file);
+			break;
+		case 'r':
+			if ((m = changelevel(m, file, level, &s)) == NULL)
+				error("could not load level %d from file: %s", level, file);
 			break;
 		case 'p':
-			prevlevel(m, level,&s);
-			level--;
+			if (level > 1) {
+				level--;
+				if ((m = changelevel(m, file, level, &s)) == NULL)
+					error("could not load level %d from file: %s", level, file);
+			} else
+				displaystr("no previous level");
 			break;
-		case 'n':
-			stroke = nextlevel(m, level,&s);
+NEXT:	case 'n':
 			level++;
+			if ((m = changelevel(m, file, level, &s)) == NULL) {
+				// MAXLEVEL check here
+			}
 			break;
 		case 'c':
 			cursormove(m);
 			continue;
 			break;
 		default:
-			displaywarning("Wrong input");
-			error("Vous n'avez pas entrez la bonne touche");
-			return 0;
-			break;
-
-			//			for (i = 0; i < ncommands; i++) {
-			//				if (commands[i] = choix)
-			//					(*commands[i].func)(m, s, Args);
-			//			}
+			displaywarning("invalid input: %c", c);
 		}
+		display(m);
 
-		display(m, stroke);
-
-		if (!verifiegagne(m))
-		{
-			continue;
+		if (iswin(m)) {
+			displaystr("Wow ... you won, I didn't expect that from you. Give a try to the next one !");
+			if (io() == 'y')
+				goto NEXT;
 		}
-		else
-
-		tmp = stroke + 1;
-		stroke = 0;
-		file = "levels.lvl";
-		//sprintf(mystr, "%d", level); // convert level to string
-		
-		// savemap(m, s, soluce);
-		level++;
-		freemap(m);
-		m = loadingmap(m, level, file,&s);
-		stroke = countstrokes(&s);
-		display(m, stroke);
-		printf("\nYou win level %d in %d strokes , you are level %d\n", level, tmp, level--);
 	}
 	return 0;
 }
 
+static void
+usage(void)
+{
+	fputs("usage: sokoban file [level]\n", stderr);
+	exit(1);
+}
