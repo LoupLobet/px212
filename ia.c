@@ -12,7 +12,8 @@ typedef struct {
 	Pair pos;
   int cost;
   int heuristic;
-	Pair camefrom;
+	Pair prevpos;
+	Pair prevmove;
 } Node;
 
 
@@ -29,9 +30,10 @@ static int dist(Pair posa, Pair posb);
 static Pair pairopposite(Pair p);
 
 
-static Stack *redopath(PQelement **queueC, Node *n);
+static Stack *redopathman(PQelement **queueC, Node *n);
+static Stack *redopathbox(PQelement **queueC, Node *n);
 static int walkable(Pair pos, Map* map);
-static Node *createnode(Pair pos, int cost, int heuristic, Pair camefrom);
+static Node *createnode(Pair pos, int cost, int heuristic, Pair prevpos, Pair prevmove);
 
 static void insert(PQelement **queue, Node *node);
 static Node* take(PQelement **queue, Pair pos);
@@ -48,7 +50,7 @@ int elemequalbox(PQelement *e, Pair nodepos, Pair prevpos);
 static int isinman(PQelement *queue, Pair nodepos, Pair prevpos);
 static int isinbox(PQelement *queue, Pair nodepos, Pair prevpos);
 
-static Stack *waybetween(Map* map, Pair posa, Pair posb, int (*validneighbour)(Node*, Pair, Map*), int (*isin)(PQelement*, Pair, Pair));
+static Stack *waybetween(Map* map, Pair posa, Pair posb, int boxway);
 static Stack *playerwaybetween(Map* map, Pair posa, Pair posb);
 static Stack *concatstack(Stack *botom, Stack *top);
 
@@ -64,42 +66,62 @@ Stack *playerwayto(Map* map, Pair pos){
 }
 
 static Stack *playerwaybetween(Map* map, Pair posa, Pair posb){
-	return waybetween(map, posa, posb, &validneighbourman, &isinman);
+	return waybetween(map, posa, posb, 0);
 }
 
 Stack *boxwaybetween(Map* map, Pair posa, Pair posb){
-	Stack *sbox = waybetween(map, posa, posb, &validneighbourbox, &isinbox);
+	if(map->grid[posa.x][posa.y].content != BOX) return NULL;
+	map->grid[posa.x][posa.y].content = EMPTY;
+
+	Stack *sbox = waybetween(map, posa, posb, 1);
+	showstack(sbox);
 	Stack *splayer = NULL;
+	Stack *poped = emalloc(sizeof(Stack));
 	Pair posplayer = map->player;
 	Pair posbox = posa;
 	while(sbox != NULL){
-		Stack *poped;	popstack(&sbox, poped);
+		popstack(&sbox, poped);
 		Pair boxmove = poped->move;
 		Pair postomovebox = pairadd(pairopposite(boxmove), posbox);
 		Stack *playertobox = playerwaybetween(map, posplayer, postomovebox);
 		splayer = concatstack(splayer, playertobox);
 		pushstack(&splayer, boxmove, 1);
-		posplayer = pairadd(postomovebox, boxmove);
+		posplayer = posbox;
 		posbox = pairadd(posbox, boxmove);
 	}
+	free(poped);
+	map->grid[posa.x][posa.y].content = BOX;
 	return splayer;
 }
 
 // stack related
-static Stack *waybetween(Map* map, Pair posa, Pair posb, int (*validneighbour)(Node*, Pair, Map*), int (*isin)(PQelement*, Pair, Pair)){
+static Stack *waybetween(Map* map, Pair posa, Pair posb, int boxway){
+	Stack* (*redopath)(PQelement**, Node*);
+	int (*validneighbour)(Node*, Pair, Map*);
+	int (*isin)(PQelement*, Pair, Pair);
+	if (boxway) {
+		redopath = &redopathbox;
+		validneighbour = &validneighbourbox;
+		isin = &isinbox;
+	}	else {
+		redopath = &redopathman;
+		validneighbour = &validneighbourman;
+		isin = &isinman;
+	}
+
 	static Pair moves[] = {(Pair){-1, 0}, (Pair){0, -1}, (Pair){0, 1}, (Pair){1, 0}};
 
 	PQelement *openlist = NULL;
 	PQelement *closedlist = NULL;
 
 	// node debut
-	Node *debut = createnode(posa, 0, 0, posa);
+	Node *debut = createnode(posa, 0, 0, posa, (Pair){0,0});
 	insert(&openlist, debut);
 
 	while (!isempty(openlist)) {
 		Node* current = pull(&openlist);
 		if (pairequal(current->pos, posb)) {												// done
-			Stack *s = redopath(&closedlist, current);			// TODO LA CHANGER POUR BOX
+			Stack *s = (*redopath)(&closedlist, current);
 			empty(&openlist); empty(&closedlist); //clean
 			return s;
 		}
@@ -114,12 +136,13 @@ static Stack *waybetween(Map* map, Pair posa, Pair posb, int (*validneighbour)(N
 						if (tentativecost < neighbornode->cost){						// if.. modify it
 							neighbornode->cost = tentativecost;
 							neighbornode->heuristic = tentativecost + dist(neighborpos, posb);
-							neighbornode->camefrom = current->pos;
+							neighbornode->prevpos = current->pos;
 							insert(&openlist, neighbornode);									// put it back
 						}
 					} else {																							// create it
 						int h = tentativecost + dist(neighborpos, posb);
-						Node *neighbornode = createnode(neighborpos, tentativecost, h, current->pos);
+						Pair prevmove = pairsub(current->pos, current->prevpos);
+						Node *neighbornode = createnode(neighborpos, tentativecost, h, current->pos, prevmove);
 						insert(&openlist, neighbornode);
 					}
 				}
@@ -154,15 +177,15 @@ static int validneighbourbox(Node *current, Pair move, Map* map) {
 	// case have the space to move?
 	Pair pos = pairadd(move, current->pos);
 	Space s = map->grid[pos.x][pos.y];
-	int spacefree = s.type != WALL && s.content != BOX;
+	if (s.type == WALL || s.content == BOX) return 0;
 
-	// player have can move it?
+	// player can move it?
 	Pair unmove = pairopposite(move);
 	Pair playertargetpos = pairadd(unmove, current->pos);
-	Pair playercurrentpos = current->camefrom;
+	Pair playercurrentpos = current->prevpos;
 	Stack *path = playerwaybetween(map, playercurrentpos, playertargetpos);
 	if(path == NULL) return 0;
-	else return spacefree;
+	return 1;
 }
 
 /**
@@ -170,15 +193,16 @@ static int validneighbourbox(Node *current, Pair move, Map* map) {
  * @param pos node's position
  * @param cost node's cost
  * @param heuristic node's heuristic
- * @param camefrom node's parent positin
+ * @param prevpos node's parent positin
  * @return Node* the created node
  */
-static Node *createnode(Pair pos, int cost, int heuristic, Pair camefrom){
+static Node *createnode(Pair pos, int cost, int heuristic, Pair prevpos, Pair prevmove){
 	Node *n = emalloc(sizeof(Node));
 	n->pos = pos;
 	n->cost = cost;
 	n->heuristic = heuristic;
-	n->camefrom = camefrom;
+	n->prevpos = prevpos;
+	n->prevmove = prevmove;
 	return n;
 }
 
@@ -189,13 +213,13 @@ static Node *createnode(Pair pos, int cost, int heuristic, Pair camefrom){
  * @param pqueueO os node's position
  * @param queueC closed
  * @param heuristic node's heuristic
- * @param camefrom node's parent positin
+ * @param prevpos node's parent positin
  * @return Node* the created node
  */
-static Stack *redopath(PQelement **queueC, Node *n){
+static Stack *redopathman(PQelement **queueC, Node *n){
 	Stack	*s = NULL;
-	while (!pairequal(n->pos, n->camefrom)) {
-		Node *m = take(queueC, n->camefrom);
+	while (!pairequal(n->pos, n->prevpos)) {
+		Node *m = take(queueC, n->prevpos);
 		Pair move = pairsub(n->pos, m->pos);
 		pushstack(&s, move, 0);
 		free(n);
@@ -204,6 +228,26 @@ static Stack *redopath(PQelement **queueC, Node *n){
 	free(n);
 	return s;
 }
+
+//TODO
+static Stack *redopathbox(PQelement **queueC, Node *n){
+	Stack	*s = NULL;
+	while (!pairequal(n->pos, n->prevpos)) {
+		Node *m;
+		Pair movem;
+		do {
+			m = take(queueC, n->prevpos);
+			movem = pairsub(m->pos, m->prevpos);
+		} while (!pairequal(movem, n->prevmove)) ;
+		Pair move = pairsub(n->pos, n->prevpos);
+		pushstack(&s, move, 0);
+		free(n);
+		n = m;
+	}
+	free(n);
+	return s;
+}
+
 
 /**
  * @brief Inserts an element in the priority queue.
@@ -303,7 +347,7 @@ int elemequalman(PQelement *e, Pair nodepos, Pair prevpos) {
 
 int elemequalbox(PQelement *e, Pair nodepos, Pair prevpos) {
 	return (pairequal(e->node->pos, nodepos) &&
-					pairequal(e->node->camefrom, prevpos));
+					pairequal(e->node->prevpos, prevpos));
 }
 
 static int isinman(PQelement *queue, Pair nodepos, Pair prevpos){
