@@ -124,7 +124,7 @@ freestack(Stack **s)
  * @return int 1 if the player has been moved, 0 otherwise.
  */
 int
-move (Map *m, Pair move,Stack **s)
+move (Map *m, Pair move, Stack **s)
 {
 	Pair targ = { m->player.x + move.x, m->player.y + move.y };
     int boxmoved;

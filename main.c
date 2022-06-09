@@ -11,6 +11,11 @@
 
 static void	usage(void);
 
+/**
+ * @brief This function allows the user to enter a string by writing
+ * it and press enter in the new configuration terminal.
+ * @return char* Return the string entered.
+ */
 static char *
 getstr(void)
 {
@@ -30,10 +35,10 @@ getstr(void)
 }
 
 /**
- * @brief This function verify if each target of the level have a box on it by being launched after every move.
- *
+ * @brief This function verify if each target of the level have a box
+ * on it and so on if we win, by being launched after every move.
  * @param m Map
- * @return int
+ * @return int Return 1 if we win, 0 otherwise.
  */
 static int
 iswin(Map *m)
@@ -48,6 +53,15 @@ iswin(Map *m)
 	return 1;
 }
 
+/**
+ * @brief This function load a map and verify if a save is detected in
+ * the file "file". If yes, we can load it by executing the movement
+ * saved in the file with execstack.
+ * @param file
+ * @param level
+ * @param s
+ * @return Map* Return the map loaded.
+ */
 static Map *
 loadlevel(char *file, int level, Stack **s)
 {
@@ -61,11 +75,18 @@ loadlevel(char *file, int level, Stack **s)
 		displaystr("save detected, load it ? (y/n)");
 		if (io() == 'y')
 			m->strokes = execstack(save, m, s);
-		freestack(&save);
+		/* save is freed by execstack calling popstack */
 	}
 	return m;
 }
 
+/**
+ * @brief This function allow the user to specify which level he want to
+ * play and launch it.
+ * @param m Map
+ * @param s Stack of movement
+ * @return int return number of strokes
+ */
 static Map *
 changelevel(Map *m, char *file, int level, Stack **s)
 {
@@ -77,8 +98,59 @@ changelevel(Map *m, char *file, int level, Stack **s)
 }
 
 /**
- * @brief This function is the global structure of our program. We manage in it all the functions, how the game works by launching levels, know if we win and do the user interface.
- *
+ * @brief This function allows the user to move the cursor placed
+ * first at the player position when he pass to cursor mode.This
+ * function is the beginning for advanced functions when we want
+ * to specify a destination to go.
+ * @param m Map
+ * @return void
+ */
+void
+cursormode(Map *m)
+{
+	char move;
+	setcursor(m, (Pair){m->player.x, m->player.y});
+	while ((move = io()) != 27) {
+		switch (move) {
+		case 'U':
+			movecursor(m, (Pair){ 0, -1 });
+			break;
+		case 'D':
+			movecursor(m, (Pair){ 0, 1 });
+			break;
+		case 'L':
+			movecursor(m, (Pair){ -1, 0 });
+			break;
+		case 'R':
+			movecursor(m, (Pair){ 1, 0 });
+			break;
+		default:
+			displaywarning("Invalid move");
+		}
+	}
+}
+
+static void
+showsolve(Map *m, char *file)
+{
+	Stack *solve;
+	Stack *ds;
+	Stack pop;
+
+	solve = loadsolve(file, m->id);
+	if (solve != NULL) {
+		while (!popstack(&solve, &pop)) {
+			usleep(500000);
+			move(m, pop.move, &ds);
+			display(m);
+		}
+	}
+}
+
+/**
+ * @brief This function is the global structure of our program.
+ * We manage in it all the functions, how the game works by launching
+ * levels, know if we win and do the user interface.
  * @param argc
  * @param argv
  * @return int
@@ -105,13 +177,11 @@ main(int argc, char *argv[])
 	s = NULL;
 	if ((m = loadlevel(file, level, &s)) == NULL)
 		error("could not load level %d from file: %s", level, file);
-//	if ((maxlevel = getmaxlevel(file)) == -1)
-//		error("absent or ill formed MAXLEVEL tag in file: %s", file);
-maxlevel = 3;
+	if ((maxlevel = getmaxlevel(file)) == -1)
+		error("absent or ill formed MAXLEVEL tag in file: %s", file);
 	if (!configureTerminal())
 		error("could not configure terminal");
 	display(m);
-
 
 	while ((c = io()) != 27) { /* 27 esc */
 		switch (c) {
@@ -139,7 +209,7 @@ maxlevel = 3;
 			if ((m = changelevel(m, file, level, &s)) == NULL)
 				error("could not load level %d from file: %s", level, file);
 			break;
-		case 'r':
+RESET:		case 'r':
 			if ((m = changelevel(m, file, level, &s)) == NULL)
 				error("could not load level %d from file: %s", level, file);
 			break;
@@ -157,7 +227,12 @@ NEXT:	case 'n':
 				if ((m = changelevel(m, file, level, &s)) == NULL)
 					error("could not load level %d from file: %s", level, file);
 			} else
-				displaystr("Ok well played ... I admit ...");
+				displaystr("You finished this game lad ! You're a true chad now !");
+			break;
+		case 'x':
+			showsolve(m, file);
+			if ((m = changelevel(m, file, level, &s)) == NULL)
+				error("could not load level %d from file: %s", level, file);
 			break;
 		case 'c':
 			cursormove(m);
@@ -166,14 +241,21 @@ NEXT:	case 'n':
 		default:
 			displaywarning("invalid input: %c", c);
 		}
+
 		display(m);
 
 		if (iswin(m)) {
-			displaystr("Wow ... you won, I didn't expect that from you. Give a try to the next one !");
+			displaystr("Wow !!! What a chad ! You won ! Give a try to the next one ! (y/n)");
+			savesolve(m, s, file);
 			if (io() == 'y')
 				goto NEXT;
+			else
+				goto RESET;
+
 		}
 	}
+	freemap(m);
+	freestack(&s);
 	return 0;
 }
 

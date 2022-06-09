@@ -9,7 +9,7 @@
 #include "sokoban.h"
 #include "util.h"
 
-enum { PASS, AUTHOR, COMMENT, LEVEL, MAXLEVEL, SAVE };
+enum { PASS, AUTHOR, COMMENT, LEVEL, MAXLEVEL, SAVE, SOLVE };
 
 struct tag {
 	int name;
@@ -19,7 +19,11 @@ struct tag {
 static void	 freetag(struct tag *);
 static Pair	 getmapsize(FILE *);
 static int	 gotolevel(FILE *, int);
+static Stack	*loadstack(char *, int, int);
 static struct tag	*readtag(FILE *);
+static int	 savestack(Map *, Stack *, char *, char *, int);
+
+
 
 /**
  * @brief Frees a map allocated with loadmap().
@@ -155,14 +159,10 @@ loadmap(char *file, int id)
 	FILE *fp;
 	Map *m;
 
-	if ((fp = fopen(file, "r")) == NULL) {
-		displaywarning("could not open file: %s", file);
+	if ((fp = fopen(file, "r")) == NULL)
 		return NULL;
-	}
-	if (gotolevel(fp, id)) {
-		displaywarning("no such level: %s", file);
+	if (gotolevel(fp, id))
 		return NULL;
-	}
 	m = emalloc(sizeof(Map));
 	m->id = id;
 	m->comment = NULL;
@@ -181,7 +181,6 @@ loadmap(char *file, int id)
 			break;
 		case LEVEL:
 			/* empty grid, error */
-			displaywarning("empty map: %d", id);
 			return NULL;
 		}
 		freetag(t);
@@ -197,10 +196,8 @@ loadmap(char *file, int id)
 	x = 0;
 	y = 0;
 	m->size = getmapsize(fp);
-	if (m->size.x == 0 && m->size.y == 0) {
-		displaywarning("empty map: %d", id);
+	if (m->size.x == 0 && m->size.y == 0)
 		return NULL;
-	}
 	m->grid = emalloc(sizeof(Space) * m->size.x);
 	for (i = 0; i < m->size.x; i++) {
 		m->grid[i] = emalloc(sizeof(Space) * m->size.y);
@@ -240,17 +237,72 @@ loadmap(char *file, int id)
 			m->grid[x][y].content = BOX;
 			break;
 		default:
-			displaywarning("unknow character %c, in map: %d", c, id);
 			return NULL;
 		}
 		x++;
 	}
-	if (m->player.x == -1 && m->player.y == -1) {
-		displaywarning("no player in map: %d", id);
+	if (m->player.x == -1 && m->player.y == -1) /* no player */
 		return NULL;
-	}
 	fclose(fp);
 	return m;
+}
+
+/**
+ * @brief Extracts a map save from a file, and returns the move sequence
+ * needed to get back the saved map state.
+ * @param id map id
+ * @param file file path
+ * @return Stack* movements stack to get saved map state
+ */
+Stack *
+loadsave(char *file, int id)
+{
+	return loadstack(file, id, SAVE);
+}
+
+Stack *
+loadsolve(char *file, int id)
+{
+	return loadstack(file, id, SOLVE);
+}
+
+Stack *
+loadstack(char *file, int id, int itag)
+{
+	Pair move;
+	int boxmoved;
+	int c;
+	FILE *fp;
+	char *p;
+	Stack *s;
+	struct tag *t;
+
+	if ((fp = fopen(file, "r")) == NULL)
+		return NULL;
+	if (gotolevel(fp, id))
+		return NULL;
+	while ((c = fgetc(fp)) != EOF && c == ';') {
+		t = readtag(fp);
+		if (t->name == itag) {
+			/*
+			 * We makes assumption that t->val is a non ill formed save
+			 * (comma separated digits list, with a multiple of 3 length).
+			 */
+			p = t->val;
+			s = NULL;
+			while(strlen(p)) {
+				move.x = p[0] - 48 - 3 * (p[0] == '2');
+				move.y = p[2] - 48 - 3 * (p[2] == '2');
+				boxmoved = p[4] - 48;
+				s = pushstack(&s, move, boxmoved);
+				p += 6;
+			}
+			freetag(t);
+			return s;
+		}
+		freetag(t);
+	}
+	return NULL;
 }
 
 /**
@@ -277,6 +329,7 @@ readtag(FILE *fp)
 			name = erealloc(name, namesize *= 2);
 		name[i] = c;
 	}
+	name[i] = '\0';
 	if (!strcmp(name, "AUTHOR"))
 		t->name = AUTHOR;
 	else if (!strcmp(name, "COMMENT"))
@@ -287,6 +340,8 @@ readtag(FILE *fp)
 		t->name = MAXLEVEL;
 	else if (!strcmp(name, "SAVE"))
 		t->name = SAVE;
+	else if (!strcmp(name, "SOLVE"))
+		t->name = SOLVE;
 	else
 		t->name = PASS;
 	free(name);
@@ -317,6 +372,18 @@ readtag(FILE *fp)
 int
 savemap(Map *m, Stack *s, char *file)
 {
+	return savestack(m, s, file, "SAVE", SAVE);
+}
+
+int
+savesolve(Map *m, Stack *s, char *file)
+{
+	return savestack(m, s, file, "SOLVE", SOLVE);
+}
+
+static int
+savestack(Map *m, Stack *s, char *file, char *stag, int itag)
+{
 	char template[] = "/tmp/sokoban.XXXXXX";
 	Stack *pop;
 	Pair move;
@@ -327,31 +394,22 @@ savemap(Map *m, Stack *s, char *file)
 	struct tag *t;
 	char *temp;
 
-	if ((temp = mktemp(template)) == NULL) {
-		displaywarning("impossible to create temp file");
+	if ((temp = mktemp(template)) == NULL)
 		return 1;
-	}
 	/* race condition here */
-	if ((wfp = fopen(temp, "w")) == NULL) {
-		displaywarning("couldn't open temp file");
+	if ((wfp = fopen(temp, "w")) == NULL)
 		return 1;
-	}
-	if ((rfp = fopen(file, "r")) == NULL) {
-		displaywarning("couldn't open file: %s", file);
+	if ((rfp = fopen(file, "r")) == NULL)
 		return 1;
-	}
-
-	if (gotolevel(rfp, m->id)) {
-		displaywarning("no such level %d in file: %s", m->id, file);
+	if (gotolevel(rfp, m->id))
 		return 1;
-	}
 	headpos = ftell(rfp);
 	tailpos = 0;
-	/* check for an already existing ;SAVE tag */
+	/* check for an already existing tag */
 	while ((c = fgetc(rfp)) != EOF && c == ';') {
 		t = readtag(rfp);
-		if (t->name == SAVE) {
-			tailpos++; /* ignore the '\n' of the existing SAVE tag */
+		if (t->name == itag) {
+			tailpos++; /* ignore the '\n' of the existing tag */
 			freetag(t);
 			break;
 		}
@@ -370,7 +428,7 @@ savemap(Map *m, Stack *s, char *file)
 		(void)fputc(c, wfp);
 	}
 	/* save */
-	(void)fprintf(wfp, ";SAVE ");
+	(void)fprintf(wfp, ";%s ", stag);
 	for (pop = s; pop != NULL; pop = pop->prev) {
 		move.x = pop->move.x;
 		move.y = pop->move.y;
@@ -389,53 +447,4 @@ savemap(Map *m, Stack *s, char *file)
 	fclose(wfp);
 	rename(temp, file);
 	return 0;
-}
-
-/**
- * @brief Extracts a map save from a file, and returns the move sequence
- * needed to get back the saved map state.
- * @param id map id
- * @param file file path
- * @return Stack* movements stack to get saved map state
- */
-Stack *
-loadsave(char *file, int id)
-{
-	Pair move;
-	int boxmoved;
-	int c;
-	FILE *fp;
-	char *p;
-	Stack *s;
-	struct tag *t;
-
-	if ((fp = fopen(file, "r")) == NULL) {
-		displaywarning("couldn't open file: %s", file);
-		return NULL;
-	}
-	if (gotolevel(fp, id))
-		return NULL;
-
-	while ((c = fgetc(fp)) != EOF && c == ';') {
-		t = readtag(fp);
-		if (t->name == SAVE) {
-			/*
-			 * We makes assumption that t->val is a non ill formed save
-			 * (comma separated digits list, with a multiple of 3 length).
-			 */
-			p = t->val;
-			s = NULL;
-			while(strlen(p)) {
-				move.x = p[0] - 48 - 3 * (p[0] == '2');
-				move.y = p[2] - 48 - 3 * (p[2] == '2');
-				boxmoved = p[4] - 48;
-				s = pushstack(&s, move, boxmoved);
-				p += 6;
-			}
-			freetag(t);
-			return s;
-		}
-		freetag(t);
-	}
-	return NULL;
 }
