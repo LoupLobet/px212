@@ -11,52 +11,14 @@
 #define savecurspos() printf("\033[s")
 #define loadcurspos() printf("\033[u")
 
+
 static Pair cursorpos = (Pair){-1, -1};
 static Pair cursor0 = (Pair){1, 3};
 
-static char spacetochar(Space *s);
-int digitnb ( int nb );
+static void displaymap(Map* map, int leftmargin);
+static void displayheader(Map* map);
 static void displaycursor();
-
-static void displaymap(Map* map, int leftmargin)	{
-	int maxx = map->size.x, maxy = map->size.y;
-
-	// init ligne
-	char* ligne = emalloc(sizeof(char)*maxx + leftmargin + 1);
-	for (int i = 0; i < leftmargin; i++) ligne[i] = ' ';
-
-	//remplir lignes
-	for (int y = 0; y < maxy; y++) {
-		for (int x = 0; x < maxx; x++) {
-			ligne[x+leftmargin] = spacetochar(&map->grid[x][y]);
-		}
-		//display player
-		if (map->player.y == y)
-			ligne[map->player.x+leftmargin] = '@';
-		printf("%s\n", ligne);
-		for (int i = 0; i < maxx+1; i++) ligne[i+leftmargin] = 0;
-	}
-	free(ligne);
-}
-
-static void displayheader(Map* map)	{
-	int size = map->size.x;
-	if (size > (23-4)){
-		int b1len = (size - 23 + 4) / 2  + (size-1)%2;
-		int b2len = (size - 23 + 4) / 2;
-		char *border1 = emalloc(sizeof(char) * (b1len+1));
-		memset(border1, '=', b1len);
-		char *border2 = emalloc(sizeof(char) * (b2len+1));
-		memset(border2, '=', b2len);
-		printf("\n//==%sGame of Sokoban==%s\\\\\n\n",border1, border2);
-		cursor0 = (Pair){2, 3};
-	}	else {
-		printf("\n//==Game of Sokoban==\\\\\n\n");
-		cursor0 = (Pair){(23-size)/2, 3}; // c degeu de faire calculs et display ici
-	}
-}
-
-
+static char spacetochar(Space *s);
 
 
 void display(Map* map, int mvnb)
@@ -107,6 +69,46 @@ void displaywarning(char *fmt, ...) {
 	va_end(ap);
 	putchar('\n');
 	displaycursor();
+}
+
+
+static void displaymap(Map* map, int leftmargin)	{
+	int maxx = map->size.x, maxy = map->size.y;
+
+	// init ligne
+	char* ligne = emalloc(sizeof(char)*maxx + leftmargin + 1);
+	for (int i = 0; i < leftmargin; i++) ligne[i] = ' ';
+
+	//remplir lignes
+	for (int y = 0; y < maxy; y++) {
+		for (int x = 0; x < maxx; x++) {
+			ligne[x+leftmargin] = spacetochar(&map->grid[x][y]);
+		}
+		//display player
+		if (map->player.y == y)
+			ligne[map->player.x+leftmargin] = '@';
+		printf("%s\n", ligne);
+		for (int i = 0; i < maxx+1; i++) ligne[i+leftmargin] = 0;
+	}
+	free(ligne);
+}
+
+
+static void displayheader(Map* map)	{
+	int size = map->size.x;
+	if (size > (23-4)){
+		int b1len = (size - 23 + 4) / 2  + (size-1)%2;
+		int b2len = (size - 23 + 4) / 2;
+		char *border1 = emalloc(sizeof(char) * (b1len+1));
+		memset(border1, '=', b1len);
+		char *border2 = emalloc(sizeof(char) * (b2len+1));
+		memset(border2, '=', b2len);
+		printf("\n//==%sGame of Sokoban==%s\\\\\n\n",border1, border2);
+		cursor0 = (Pair){2, 3};
+	}	else {
+		printf("\n//==Game of Sokoban==\\\\\n\n");
+		cursor0 = (Pair){(23-size)/2, 3}; // c degeu de faire calculs et display ici
+	}
 }
 
 
