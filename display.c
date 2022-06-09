@@ -125,10 +125,10 @@ static void displayheader(Map* map)	{
 		memset(border1, '=', b1len);
 		char *border2 = emalloc(sizeof(char) * (b2len+1));
 		memset(border2, '=', b2len);
-		printf("\n//==%sGame of Sokoban==%s\\\\\n\n",border1, border2);
+		printf("\n%s====== Chad Sokoban ======%s\n\n",border1, border2);
 		cursor0 = (Pair){2, 3};
 	}	else {
-		printf("\n//==Game of Sokoban==\\\\\n\n");
+		printf("\n====== Chad Sokoban ======\n\n");
 		cursor0 = (Pair){(23-size)/2, 3}; // c degeu de faire calculs et display ici
 	}
 }
@@ -180,6 +180,8 @@ void setcursor(Map *map, Pair pos){
 	Pair ms = map->size;
 	if(px == -1 && py == -1) cursorpos = pos;
 	else cursorpos = (Pair){MIN(MAX(pos.x, 0), ms.x-1), MIN(MAX(pos.y, 0), ms.y-1)};
+	map->cursor.x = cursorpos.x;
+	map->cursor.y = cursorpos.y;
 	updatecursor();
 }
 

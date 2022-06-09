@@ -7,6 +7,8 @@
 #include <errno.h>
 #include <limits.h>
 
+#include "input.h"
+
 void
 error(const char *fmt, ...)
 {
@@ -17,6 +19,7 @@ error(const char *fmt, ...)
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fputc('\n', stderr);
+	resetTerminal();
 	exit(1);
 }
 
@@ -29,6 +32,7 @@ warning(const char *fmt, ...)
 	(void)fprintf(stderr, "sokoban: Warning: ");
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
+	resetTerminal();
 	fputc('\n', stderr);
 }
 

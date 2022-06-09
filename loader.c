@@ -111,6 +111,12 @@ getmapsize(FILE *fp)
 			len++;
 		n++;
 	}
+	if (c == EOF) { /* catch the last line before EOF */
+		puts("EOF");
+		size.y += 2;
+		if (size.x < len)
+			size.x = len;
+	}
 	/* keep fp unchanged */
 	fseek(fp, -(n + 1), SEEK_CUR);
 	return size;
@@ -203,6 +209,7 @@ loadmap(char *file, int id)
 		m->grid[i] = emalloc(sizeof(Space) * m->size.y);
 		memset(m->grid[i], FLOOR, m->size.y);
 	}
+	printf("%d, %d\n", m->size.x, m->size.y);
 	while ((c = fgetc(fp)) != EOF && c != ';') {
 		if (c == '\n') {
 			x = 0;
