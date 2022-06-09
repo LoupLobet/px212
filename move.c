@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "display.h"
-#include "input.h"
 #include "move.h"
 #include "sokoban.h"
 #include "util.h"
@@ -35,38 +34,6 @@ canmove(Map *m, Pair move)
 		return 0;
 }
 
-/**
- * @brief This function allows the user to move the cursor placed
- * first at the player position when he pass to cursor mode.This
- * function is the beginning for advanced functions when we want
- * to specify a destination to go.
- * @param m Map
- * @return void
- */
-void
-cursormove(Map *m)
-{
-	char move;
-	setcursor(m, (Pair){m->player.x, m->player.y});
-	while ((move = io()) != 27) {
-		switch (move) {
-		case 'U':
-			movecursor(m, (Pair){ 0, -1 });
-			break;
-		case 'D':
-			movecursor(m, (Pair){ 0, 1 });
-			break;
-		case 'L':
-			movecursor(m, (Pair){ -1, 0 });
-			break;
-		case 'R':
-			movecursor(m, (Pair){ 1, 0 });
-			break;
-		default:
-			displaywarning("Invalid move");
-		}
-	}
-}
 
 /**
  * @brief This function can be used to show the solution to the user

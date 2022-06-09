@@ -11,6 +11,11 @@
 
 static void	usage(void);
 
+/**
+ * @brief This function allows the user to enter a string by writing it and press enter in the new configuration terminal.
+ *  
+ * @return char* Return the string entered.
+ */
 static char *
 getstr(void)
 {
@@ -30,10 +35,10 @@ getstr(void)
 }
 
 /**
- * @brief This function verify if each target of the level have a box on it by being launched after every move.
+ * @brief This function verify if each target of the level have a box on it and so on if we win, by being launched after every move.
  *
  * @param m Map
- * @return int
+ * @return int Return 1 if we win, 0 otherwise.
  */
 static int
 iswin(Map *m)
@@ -48,6 +53,16 @@ iswin(Map *m)
 	return 1;
 }
 
+
+/**
+ * @brief This function load a map and verify if a save is detected in the file "file". 
+ * If yes, we can load it by executing the movement saved in the file with execstack.
+ * 
+ * @param file 
+ * @param level 
+ * @param s 
+ * @return Map* Return the map loaded.
+ */
 static Map *
 loadlevel(char *file, int level, Stack **s)
 {
@@ -66,6 +81,16 @@ loadlevel(char *file, int level, Stack **s)
 	return m;
 }
 
+
+
+/**
+ * @brief This function allow the user to specify which level he want to play and launch it.
+ *
+ * @param m Map
+ * @param s Stack of movement
+ * @return int return number of strokes
+ */
+
 static Map *
 changelevel(Map *m, char *file, int level, Stack **s)
 {
@@ -75,6 +100,40 @@ changelevel(Map *m, char *file, int level, Stack **s)
 	/* loadlevel return NULL -> changelevel returns NULL */
 	return m;
 }
+
+/**
+ * @brief This function allows the user to move the cursor placed
+ * first at the player position when he pass to cursor mode.This
+ * function is the beginning for advanced functions when we want
+ * to specify a destination to go.
+ * @param m Map
+ * @return void
+ */
+void
+cursormode(Map *m)
+{
+	char move;
+	setcursor(m, (Pair){m->player.x, m->player.y});
+	while ((move = io()) != 27) {
+		switch (move) {
+		case 'U':
+			movecursor(m, (Pair){ 0, -1 });
+			break;
+		case 'D':
+			movecursor(m, (Pair){ 0, 1 });
+			break;
+		case 'L':
+			movecursor(m, (Pair){ -1, 0 });
+			break;
+		case 'R':
+			movecursor(m, (Pair){ 1, 0 });
+			break;
+		default:
+			displaywarning("Invalid move");
+		}
+	}
+}
+
 
 /**
  * @brief This function is the global structure of our program. We manage in it all the functions, how the game works by launching levels, know if we win and do the user interface.
@@ -88,7 +147,6 @@ main(int argc, char *argv[])
 {
 	char c;
 	int level;
-	int maxlevel;
 	char *file;
 	Map *m;
 	Stack *s;
@@ -105,13 +163,9 @@ main(int argc, char *argv[])
 	s = NULL;
 	if ((m = loadlevel(file, level, &s)) == NULL)
 		error("could not load level %d from file: %s", level, file);
-//	if ((maxlevel = getmaxlevel(file)) == -1)
-//		error("absent or ill formed MAXLEVEL tag in file: %s", file);
-maxlevel = 3;
 	if (!configureTerminal())
 		error("could not configure terminal");
 	display(m);
-
 
 	while ((c = io()) != 27) { /* 27 esc */
 		switch (c) {
@@ -152,15 +206,13 @@ maxlevel = 3;
 				displaystr("no previous level");
 			break;
 NEXT:	case 'n':
-			if (level < maxlevel) {
-				level++;
-				if ((m = changelevel(m, file, level, &s)) == NULL)
-					error("could not load level %d from file: %s", level, file);
-			} else
-				displaystr("Ok well played ... I admit ...");
+			level++;
+			if ((m = changelevel(m, file, level, &s)) == NULL) {
+				// MAXLEVEL check here
+			}
 			break;
 		case 'c':
-			cursormove(m);
+			cursormode(m);
 			continue;
 			break;
 		default:
@@ -174,8 +226,17 @@ NEXT:	case 'n':
 				goto NEXT;
 		}
 	}
+	freemap(m);
+	freestack(&s);
+	resetTerminal();
 	return 0;
 }
+
+/**
+ * @brief This function describe the usage to launch the program.
+ *
+ * @return void
+ */
 
 static void
 usage(void)
