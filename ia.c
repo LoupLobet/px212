@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "sokoban.h"
 #include "display.h"
@@ -62,7 +64,7 @@ Stack *playerwaybetween(Map* map, Pair posa, Pair posb){
 		}
 		for (int i = 0; i < 4; i++) { 															// each neighbor
 			Pair neighborpos = pairadd(moves[i], current->pos);				// each neighbor
-				if (walkable(neighborpos, map))  									// each neighbor
+				if (walkable(neighborpos, map))  												// each neighbor
 				{
 				int tentativecost = current->cost + 1;
 				if (!isin(closedlist, neighborpos)){										// not in closedlist
@@ -87,6 +89,7 @@ Stack *playerwaybetween(Map* map, Pair posa, Pair posb){
 	empty(&openlist); empty(&closedlist); //clean
 	return NULL;
 }
+
 
 /**
  * @brief Checks if a space is walkable.
