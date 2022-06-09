@@ -69,7 +69,7 @@ loadlevel(char *file, int level, Stack **s)
 static Map *
 changelevel(Map *m, char *file, int level, Stack **s)
 {
-	free(m);
+	freemap(m);
 	freestack(s);
 	m = loadlevel(file, level, s);
 	/* loadlevel return NULL -> changelevel returns NULL */
@@ -88,6 +88,7 @@ main(int argc, char *argv[])
 {
 	char c;
 	int level;
+	int maxlevel;
 	char *file;
 	Map *m;
 	Stack *s;
@@ -104,9 +105,13 @@ main(int argc, char *argv[])
 	s = NULL;
 	if ((m = loadlevel(file, level, &s)) == NULL)
 		error("could not load level %d from file: %s", level, file);
+//	if ((maxlevel = getmaxlevel(file)) == -1)
+//		error("absent or ill formed MAXLEVEL tag in file: %s", file);
+maxlevel = 3;
 	if (!configureTerminal())
 		error("could not configure terminal");
 	display(m);
+
 
 	while ((c = io()) != 27) { /* 27 esc */
 		switch (c) {
@@ -147,10 +152,12 @@ main(int argc, char *argv[])
 				displaystr("no previous level");
 			break;
 NEXT:	case 'n':
-			level++;
-			if ((m = changelevel(m, file, level, &s)) == NULL) {
-				// MAXLEVEL check here
-			}
+			if (level < maxlevel) {
+				level++;
+				if ((m = changelevel(m, file, level, &s)) == NULL)
+					error("could not load level %d from file: %s", level, file);
+			} else
+				displaystr("Ok well played ... I admit ...");
 			break;
 		case 'c':
 			cursormove(m);
