@@ -1,13 +1,20 @@
+CC=cc
+CFLAGS=-Wall -g -fsanitize=address
+LDFLAGS=-fsanitize=address
+OBJS=display.o ia.o input.o loader.o move.o util.o main.o
 
-debugflags= -Wall -g #-fsanitize=address
-objets= display.o ia.o input.o loader.o move.o util.o
+all: clean sokoban
 
-sokoban : main.c $(objets)
-	gcc -o sokoban main.c $(objets) $(debugflags)
+sokoban : $(OBJS)
+	$(CC) -o sokoban $(OBJS) $(LDFLAGS)
 
-%.o : %.c
-	gcc -o $@ -c $< $(debugflags)
+display.o: display.c
+# display.c generates warning with pedantic because of '\e'
+	$(CC) -c display.c $(CFLAGS)
+
+.c.o:
+	${CC} -c $< $(CFLAGS) -pedantic
 
 clean:
-	-rm *.o
-	-rm sokoban
+	rm -f *.o
+	rm -f sokoban
