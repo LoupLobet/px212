@@ -1,7 +1,7 @@
 #include "sokoban.h"
 
 
-void display(Map* map, int mvnb);
+void display(Map* map);
 void displaystr(char *s);
 void displaywarning(char *fmt, ...);
 void setcursor(Map *map, Pair pos);

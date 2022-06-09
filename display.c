@@ -26,7 +26,7 @@ static char spacetochar(Space *s);
  * @param mvnb strokes number
  * @return void
  */
-void display(Map* map, int mvnb)
+void display(Map* map)
 {
 	// clear
 	printf("\e[1;1H\e[2J");
@@ -48,7 +48,7 @@ void display(Map* map, int mvnb)
 		printf("|\n\\-> %s\n", map->comment);
 
 	// print movement nb
-	printf("\nYou made %d strokes\n",mvnb);
+	printf("\nYou made %d strokes\n", map->strokes);
 
 	// print help
 	// printf("\n - Press 'ESC' to quit \n - Press Arrow Keys to move\n - Press 'z' to undo\n - Press 's' to save\n - Press 'r' to restart\n - Press l nblevel and enter to choose a new level\n - Press 'n' to go to next level\n - Press 'p' to go to previous level\n - Press 'c' to pass in cursor mode and 'ESC' to exit\n");
@@ -77,10 +77,10 @@ void displaywarning(char *fmt, ...) {
 
 	printf("\e[1A\e[2K");
 	va_start(ap, fmt);
-	(void)printf("WARNING : ");
+	(void)printf("\e[31;47mWARNING : ");
 	(void)vprintf(fmt, ap);
 	va_end(ap);
-	putchar('\n');
+	printf("\e[0m\n");
 	updatecursor();
 }
 
