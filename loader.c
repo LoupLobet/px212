@@ -187,8 +187,11 @@ loadmap(char *file, int id)
 			continue;
 		}
 		switch (c) {
-		case FLOOR:
 		case WALL:
+			m->grid[x][y].type = c;
+			m->grid[x][y].content = WALL;
+			break;
+		case FLOOR:
 		case TARGET:
 			m->grid[x][y].type = c;
 			m->grid[x][y].content = EMPTY;
