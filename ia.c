@@ -32,14 +32,12 @@ static Pair pairopposite(Pair p);
 
 static Stack *redopathman(PQelement **queueC, Node *n);
 static Stack *redopathbox(PQelement **queueC, Node *n);
-static int walkable(Pair pos, Map* map);
 static Node *createnode(Pair pos, int cost, int heuristic, Pair prevpos, Pair prevmove);
 
 static void insert(PQelement **queue, Node *node);
 static Node* take(PQelement **queue, Pair pos);
 static Node* pull(PQelement **queue);
 static int isempty(PQelement *queue);
-static int isin(PQelement *queue, Pair nodepos);
 static void empty(PQelement **queue);
 
 static int validneighbourman(Node *current, Pair move, Map* map);
@@ -74,7 +72,6 @@ Stack *boxwaybetween(Map* map, Pair posa, Pair posb){
 	map->grid[posa.x][posa.y].content = EMPTY;
 
 	Stack *sbox = waybetween(map, posa, posb, 1);
-	showstack(sbox);
 	Stack *splayer = NULL;
 	Stack *poped = emalloc(sizeof(Stack));
 	Pair posplayer = map->player;

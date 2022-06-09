@@ -30,9 +30,9 @@ int
 main(int argc, char *argv[])
 {
 	char c;
-	int level;
+	int level = 1;
 	int maxlevel;
-	char *file;
+	char *file = NULL;
 	Map *m;
 	Stack *s;
 

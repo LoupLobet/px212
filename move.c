@@ -26,8 +26,8 @@ canmove(Map *m, Pair move)
 	Pair behind = { m->player.x + 2 * move.x, m->player.y + 2 * move.y };
 
 	if (m->grid[targ.x][targ.y].content == EMPTY ||
-		m->grid[targ.x][targ.y].content == BOX &&
-	    m->grid[behind.x][behind.y].content == EMPTY)
+	   ((m->grid[targ.x][targ.y].content == BOX) &&
+	   (m->grid[behind.x][behind.y].content == EMPTY)))
 	{
 		return 1;
 	} else
