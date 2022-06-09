@@ -1,17 +1,17 @@
 #include "input.h"
+
 struct termios new;
 struct termios old;
 
 /**
- * @brief We configure the terminal to read one character at a time. We don't want to wait for a newline and we don't want to echo the character.
- * 
+ * @brief We configure the terminal to read one character at a time. We don't
+ * want to wait for a newline and we don't want to echo the character.
  * @return int return 0 if the configuration is correct, -1 otherwise.
  */
-
 int
-configureTerminal(void)
+configterm(void)
 {
-	
+
 
 	if (tcgetattr(0,&old)==-1) {
 		perror("tcgetattr");
@@ -30,13 +30,11 @@ configureTerminal(void)
 }
 
 /**
- * @brief 
- * 
+ * @brief Reset terminal to non canonical mode.
  * @return int Return 0 if the configuration is correct, -1 otherwise.
  */
-
 int
-resetTerminal(void)
+resetterm(void)
 {
 	if (tcsetattr(0,TCSANOW,&old)==-1) {
 		perror("tcsetattr");
@@ -47,10 +45,8 @@ resetTerminal(void)
 
 /**
  * @brief We read one character from the terminal.
- * 
  * @return int Return the character read.
  */
-
 int
 io(void) {
 	char r[MAXSIZE];
@@ -85,5 +81,3 @@ io(void) {
 		break;
 	}
 }
-
-

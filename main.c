@@ -46,7 +46,7 @@ main(int argc, char *argv[])
 		usage();
 
 	s = NULL;
-	if (!configureTerminal())
+	if (!configterm())
 		error("could not configure terminal");
 	if ((m = loadlevel(file, level, &s)) == NULL)
 		error("could not load level %d from file: %s", level, file);
@@ -140,7 +140,7 @@ NEXT:	case 'n':
 		}
 	}
 	display(m);
-	resetTerminal();
+	resetterm();
 	freemap(m);
 	freestack(&s);
 	return 0;
