@@ -7,7 +7,12 @@
 #include "util.h"
 #include "ia.h"
 
-
+/**
+ * @brief Node struct, pos : position, cost : length of the shorter path between
+ * him and the start node, heuristic : distance between this node and the target
+ * node, camefrom : the position of the previous node in the path linking this
+ * node to the start.
+ */
 typedef struct {
 	Pair pos;
   int cost;
@@ -15,7 +20,9 @@ typedef struct {
 	Pair camefrom;
 } Node;
 
-
+/**
+ * @brief Priority Queue Element, the Priority Queue is a linked list of Nodes.
+ */
 typedef struct PQelement {
 		Node *node;
     struct PQelement *next;
@@ -41,6 +48,7 @@ static void empty(PQelement **queue);
 
 /**
  * @brief Finds the path for the player between two positions (if it exist).
+ * Algorithm from https://fr.wikipedia.org/wiki/Algorithme_A* .
  * @param map the map on wich the player evolve
  * @param posa the start position
  * @param posb the end position
