@@ -47,7 +47,7 @@ canmove(Map *m, Pair move)
  * @param m Map
  * @param output Stack of movement of the level
  * @param stroke Number of strokes
- * @return void
+ * @return int Return the number of strokes
  */
 int
 execstack(Stack *input, Map *m, Stack **output)
@@ -66,6 +66,12 @@ execstack(Stack *input, Map *m, Stack **output)
 	}
 	return n;
 }
+
+/**
+ * @brief This function free the stack pass in parameter.
+ * 
+ * @param s The stack of movement
+ */
 
 void
 freestack(Stack **s)

@@ -6,7 +6,7 @@ struct termios old;
 /**
  * @brief We configure the terminal to read one character at a time. We don't
  * want to wait for a newline and we don't want to echo the character.
- * @return int return 0 if the configuration is correct, -1 otherwise.
+ * @return int return 1 if the configuration is correct, 0 otherwise.
  */
 int
 configterm(void)
@@ -31,7 +31,7 @@ configterm(void)
 
 /**
  * @brief Reset terminal to non canonical mode.
- * @return int Return 0 if the configuration is correct, -1 otherwise.
+ * @return int Return 1 if the configuration is correct, 0 otherwise.
  */
 int
 resetterm(void)

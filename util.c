@@ -9,6 +9,13 @@
 
 #include "input.h"
 
+/**
+ * @brief This function is used to show an error 
+ * 
+ * @param fmt String to show
+ * @param ... 
+ */
+
 void
 error(const char *fmt, ...)
 {
@@ -23,6 +30,12 @@ error(const char *fmt, ...)
 	exit(1);
 }
 
+/**
+ * @brief This function is used to show a warning
+ * 
+ * @param fmt String to show
+ * @param ... 
+ */
 void
 warning(const char *fmt, ...)
 {
@@ -36,6 +49,13 @@ warning(const char *fmt, ...)
 	fputc('\n', stderr);
 }
 
+
+/**
+ * @brief This function is uses to malloc a pointer and manage error
+ * 
+ * @param n  Size of the pointer
+ * @return void* Return the pointer
+ */
 void *
 emalloc(unsigned int n)
 {
@@ -48,6 +68,13 @@ emalloc(unsigned int n)
 	return p;
 }
 
+/**
+ * @brief This function is uses to realloc a pointer and manage error
+ * 
+ * @param q Memory
+ * @param n Size of the pointer
+ * @return void* Return the pointer
+ */
 void *
 erealloc(void *q, unsigned int n)
 {
@@ -59,6 +86,12 @@ erealloc(void *q, unsigned int n)
 	return p;
 }
 
+/**
+ * @brief Use of strdup and manage errors
+ * 
+ * @param s1 
+ * @return char* 
+ */
 char *
 estrdup(const char *s1)
 {
@@ -70,6 +103,13 @@ estrdup(const char *s1)
 	return s2;
 }
 
+/**
+ * @brief Use strtol and manage errors of out of band
+ * 
+ * @param nptr Input string
+ * @param base Base for strtol
+ * @return long Return the new long
+ */
 long
 estrtol(const char *nptr, int base)
 {

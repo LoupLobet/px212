@@ -20,8 +20,20 @@ static void	 usage(void);
 
 /**
  * @brief This function is the global structure of our program.
- * We manage in it all the functions, how the game works by launching
- * levels, know if we win and do the user interface.
+ * We manage in it all the functions, how the game works by launclevels, know if we win and do the user interface.
+ * Menu : 
+ * 
+ * - Press 'ESC' to quit 
+ * - Press Arrow Keys to move
+ * - Press 'z' to undo
+ * - Press 's' to save
+ * - Press 'r' to restart
+ * - Press 'l' nblevel and enter to choose a new level
+ * - Press 'n' to go to next level
+ * - Press 'p' to go to previous level
+ * - Press 'c' to pass in cursor mode and 'ESC' to exit\
+ * - Press 'x' to show a solution
+ * 
  * @param argc
  * @param argv
  * @return int
@@ -254,9 +266,10 @@ iswin(Map *m)
  * @brief This function load a map and verify if a save is detected in
  * the file "file". If yes, we can load it by executing the movement
  * saved in the file with execstack.
+ * 
  * @param file
  * @param level
- * @param s
+ * @param s Stack of movement
  * @return Map* Return the map loaded.
  */
 static Map *
@@ -278,6 +291,14 @@ loadlevel(char *file, int level, Stack **s)
 	return m;
 }
 
+/**
+ * @brief This function show the solution of the level if it exists step by step.
+ * 
+ * @param m Map
+ * @param file File that we want to load
+ * @return int Return 0 if we can show the solution, 0 otherwise
+ */
+
 static int
 showsolve(Map *m, char *file)
 {
@@ -296,6 +317,11 @@ showsolve(Map *m, char *file)
 	}
 	return 1;
 }
+
+/**
+ * @brief This function give to the user the good usage to load the program.
+ * 
+ */
 
 static void
 usage(void)
