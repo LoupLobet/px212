@@ -11,6 +11,11 @@
 
 enum { PASS, AUTHOR, COMMENT, LEVEL, MAXLEVEL, SAVE, SOLVE };
 
+
+/**
+ * @brief This struct is used to save a tag by his name (like Author, MAXLEVEL...) and value after the name.
+ * 
+ */
 struct tag {
 	int name;
 	char *val;
@@ -58,6 +63,12 @@ freetag(struct tag *t)
 	free(t);
 }
 
+/**
+ * @brief We get the maxlevel by reading the maxlevel tag in the file.
+ * 
+ * @param file file path
+ * @return int Return the number of level max.
+ */
 int
 getmaxlevel(char *file)
 {
@@ -267,12 +278,27 @@ loadsave(char *file, int id)
 	return loadstack(file, id, SAVE);
 }
 
+/**
+ * @brief Extracts a map solve from a file, and returns the move sequence
+ * needed to get back the saved map state.
+ * @param id map id
+ * @param file file path
+ * @return Stack* movements stack to get saved map state
+ */
+
 Stack *
 loadsolve(char *file, int id)
 {
 	return loadstack(file, id, SOLVE);
 }
 
+/**
+ * @brief Extracts a list of movement from a file, and returns the move sequence
+ * needed to get back the saved map state.
+ * @param id map id
+ * @param file file path
+ * @return Stack* movements stack to get saved map state
+ */
 Stack *
 loadstack(char *file, int id, int itag)
 {
@@ -374,19 +400,34 @@ readtag(FILE *fp)
  * @param m allocated map struct
  * @param s map associated movements stack
  * @param file file path
- * @return int 0 if map is successfully saved to the, 1 otherwise
+ * @return int 0 if map is successfully saved , 1 otherwise
  */
 int
 savemap(Map *m, Stack *s, char *file)
 {
 	return savestack(m, s, file, "SAVE", SAVE);
 }
-
+/**
+ * @brief Saves a solution of level in a .lvl file.
+ * @param m allocated map struct
+ * @param s map associated movements stack
+ * @param file file path
+ * @return int 0 if map is successfully saved , 1 otherwise
+ */
 int
 savesolve(Map *m, Stack *s, char *file)
 {
 	return savestack(m, s, file, "SOLVE", SOLVE);
 }
+/**
+ * @brief Saves a stack  to a .lvl file.
+ * @param m allocated map struct
+ * @param s map associated movements stack
+ * @param file file path
+ * @param stag String tag 
+ * @param itag Int tag
+ * @return int 0 if map is successfully saved to the, 1 otherwise
+ */
 
 static int
 savestack(Map *m, Stack *s, char *file, char *stag, int itag)
