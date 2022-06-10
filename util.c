@@ -19,7 +19,7 @@ error(const char *fmt, ...)
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	fputc('\n', stderr);
-	resetTerminal();
+	resetterm();
 	exit(1);
 }
 
@@ -32,7 +32,7 @@ warning(const char *fmt, ...)
 	(void)fprintf(stderr, "sokoban: Warning: ");
 	(void)vfprintf(stderr, fmt, ap);
 	va_end(ap);
-	resetTerminal();
+	resetterm();
 	fputc('\n', stderr);
 }
 
